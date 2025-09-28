@@ -1,5 +1,9 @@
 # CatFace Search: 猫脸视觉相似性搜索引擎
 
+## 效果展示
+<img width="2459" height="1234" alt="bd2030c4-9fd0-4aac-baba-d775c89ac6a7" src="https://github.com/user-attachments/assets/f523cffa-118a-4a43-b38b-4e6b89a2bb9b" />
+<img width="2335" height="1172" alt="cb94c72e-e5c7-4efb-b708-8f915f452c9e" src="https://github.com/user-attachments/assets/1375236d-1b0e-4623-a1d2-638778da4a73" />
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch-orange.svg)
