@@ -1,8 +1,8 @@
 # CatFace Search: 猫脸视觉相似性搜索引擎
 
 ## 效果展示
-<img width="2459" height="1234" alt="bd2030c4-9fd0-4aac-baba-d775c89ac6a7" src="https://github.com/user-attachments/assets/f523cffa-118a-4a43-b38b-4e6b89a2bb9b" />
-<img width="2335" height="1172" alt="cb94c72e-e5c7-4efb-b708-8f915f452c9e" src="https://github.com/user-attachments/assets/1375236d-1b0e-4623-a1d2-638778da4a73" />
+<img width="2459" height="1234" alt="bd2030c4-9fd0-4aac-baba-d775c89ac6a7" src="docs/bd2030c4-9fd0-4aac-baba-d775c89ac6a7.png" />
+<img width="2335" height="1172" alt="cb94c72e-e5c7-4efb-b708-8f915f452c9e" src="docs/cb94c72e-e5c7-4efb-b708-8f915f452c9e.png" />
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
@@ -19,7 +19,7 @@
 本项目巧妙地绕开了这个问题，其核心思想是**将“识别问题”转化为“在高维空间中测量相似度”的数学问题**：
 
 1.  **我们不“训练”模型去认识猫，而是“利用”一个“视觉专家”**：
-    我们使用了一个在 ImageNet（包含数百万张图片）上预训练好的`ResNet-50`模型。这个模型已经学会了如何理解图像的通用视觉特征——从简单的边缘、纹理到复杂的部件（眼睛、鼻子、毛皮图案）。
+    我们使用了一个在 ImageNet（包含数百万张图片）上预训练好的`ResNet-50`模型。这个模型已经学会了如何理解图像的通用视觉特征——从简单的边缘、纹理到复杂的部件（眼睛、鼻子、毛皮图案）。它就像一个通用的“视觉翻译官”。
 
 2.  **将图片“翻译”成“面部指纹”**：
     我们利用这个“翻译官”将每一张猫脸图片，转换（或“翻译”）成一个 2048 维的数字向量，即**特征向量 (Embedding)**。这个向量可以被看作是这张脸独一无二的“面部指纹”。
