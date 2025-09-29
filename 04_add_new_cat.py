@@ -1,100 +1,158 @@
-# 扫描 cropped_faces 文件夹，并与现有的数据库 (embeddings.pkl) 进行对比。
-# 找出所有新添加的、尚未被处理过的猫脸图片。
-# 只为这些新图片生成特征向量（Embeddings）。
-# 将新生成的特征向量追加到现有数据库的末尾，并保存。
+# 自动扫描并找出 cropped_faces 文件夹中所有新添加的、未被处理的猫脸图片。
+# 从本地文件加载ResNet-50模型，并使用TTA（测试时增强）技术，以批处理的方式高效地为所有新图片生成鲁棒的特征向量。
+# 将这些新生成的特征向量无缝追加到现有的数据库文件 (embeddings_tta.pkl) 中，使其保持最新。
 
-# 04_update_database.py
+# 04_update_new_cat.py
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
+from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import os
 from glob import glob
 from tqdm import tqdm
 import numpy as np
 import pickle
+import torchvision.transforms.functional as F
 import sys
 
 # --- 1. 配置 ---
 CROPPED_DIR = 'cat_retrieval/cropped_faces'
-EMBEDDINGS_FILE = 'embeddings.pkl'
+# 确保我们操作的是使用TTA技术的数据库文件
+EMBEDDINGS_FILE = 'embeddings_tta.pkl'
+# 本地模型权重路径
+MODEL_WEIGHTS_PATH = 'pretrained_models/resnet50-weights.pth'
+# 批处理大小，与02号脚本保持一致
+BATCH_SIZE = 16
+NUM_WORKERS = 4 if torch.cuda.is_available() else 0
+
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f"使用设备: {DEVICE}")
-
-# --- 2. 加载现有数据库，找出已处理的文件 ---
-processed_files = set()
-if os.path.exists(EMBEDDINGS_FILE):
-    print(f"正在加载现有数据库: {EMBEDDINGS_FILE}")
-    with open(EMBEDDINGS_FILE, 'rb') as f:
-        data = pickle.load(f)
-        # 假设 filenames 列表与 embeddings 数组一一对应
-        processed_files = set(data['filenames'])
-    print(f"数据库中已有 {len(processed_files)} 个已处理的文件。")
-else:
-    print("未找到现有数据库，将创建新文件。")
-    data = {'embeddings': np.array([]), 'filenames': []}
+print(f"使用设备: {DEVICE}, 批处理大小: {BATCH_SIZE}, CPU核心数: {NUM_WORKERS}")
 
 
-# --- 3. 找出所有待处理的新文件 ---
-all_face_files = set(glob(os.path.join(CROPPED_DIR, '*.[jp][pn]g')))
-new_files_to_process = sorted(list(all_face_files - processed_files)) # 排序以保证顺序
+# --- 2. 复用核心类与函数 ---
 
-if not new_files_to_process:
-    print("数据库已是最新，没有新的猫脸照片需要处理。")
-    sys.exit(0)
+# 复用在02号优化脚本中定义的Dataset类
+class CatFaceDataset(Dataset):
+    def __init__(self, image_paths, transform=None):
+        self.image_paths = image_paths
+        self.transform = transform
 
-print(f"发现 {len(new_files_to_process)} 个新文件需要处理。")
+    def __len__(self):
+        return len(self.image_paths)
 
-# --- 4. 加载模型和预处理器 (与02号脚本完全相同) ---
-print("加载特征提取模型...")
-model = models.resnet50(pretrained=True)
-model = torch.nn.Sequential(*(list(model.children())[:-1]))
-model.to(DEVICE)
-model.eval()
-
-preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-# --- 5. 为新文件生成Embeddings ---
-new_embeddings = []
-processed_new_files = [] # 只保存成功处理的文件名
-
-with torch.no_grad():
-    for img_path in tqdm(new_files_to_process, desc="生成新特征"):
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
         try:
             img = Image.open(img_path).convert('RGB')
-            img_tensor = preprocess(img).unsqueeze(0).to(DEVICE)
-            embedding = model(img_tensor)
-            embedding_flat = embedding.squeeze().cpu().numpy()
-            new_embeddings.append(embedding_flat)
-            processed_new_files.append(img_path)
+            original_img_tensor = self.transform(img)
+            flipped_img_tensor = self.transform(F.hflip(img))
+            return (original_img_tensor, flipped_img_tensor), img_path
         except Exception as e:
-            print(f"\n处理图片 {img_path} 时出错: {e}, 跳过此文件。")
+            print(f"警告: 加载或处理图片失败 {img_path}: {e}")
+            return None, None
 
-if not new_embeddings:
-    print("未能为任何新文件生成特征向量。")
-    sys.exit(0)
+def collate_fn(batch):
+    batch = list(filter(lambda x: x[0] is not None, batch))
+    if not batch:
+        return None, None
+    tensors, paths = zip(*batch)
+    original_tensors, flipped_tensors = zip(*tensors)
+    original_batch = torch.stack(original_tensors)
+    flipped_batch = torch.stack(flipped_tensors)
+    return (original_batch, flipped_batch), paths
 
-# --- 6. 将新数据追加到数据库 ---
-new_embeddings_np = np.array(new_embeddings, dtype='float32')
+# 复用在02号优化脚本中的批处理生成函数
+def generate_embeddings_in_batches(model, data_loader):
+    all_embeddings, all_filenames = [], []
+    with torch.no_grad():
+        for (original_batch, flipped_batch), paths in tqdm(data_loader, desc="为新图片生成TTA特征"):
+            if original_batch is None: continue
+            combined_batch = torch.cat([original_batch, flipped_batch]).to(DEVICE)
+            combined_embeddings = model(combined_batch).squeeze()
+            original_embs, flipped_embs = torch.chunk(combined_embeddings, 2)
+            avg_embs = (original_embs + flipped_embs) / 2.0
+            all_embeddings.append(avg_embs.cpu().numpy())
+            all_filenames.extend(paths)
+    if not all_embeddings:
+        return np.array([]), []
+    return np.vstack(all_embeddings), all_filenames
 
-# 如果现有数据库为空，则直接使用新数据
-if data['embeddings'].size == 0:
-    updated_embeddings = new_embeddings_np
-else:
-    updated_embeddings = np.vstack([data['embeddings'], new_embeddings_np])
+def get_model(weights_path):
+    """从本地路径加载模型"""
+    model = models.resnet50(weights=None)
+    model.load_state_dict(torch.load(weights_path))
+    model = torch.nn.Sequential(*(list(model.children())[:-1]))
+    model.to(DEVICE)
+    model.eval()
+    return model
 
-updated_filenames = data['filenames'] + processed_new_files
+# --- 3. 主执行函数 ---
+def main():
+    # 检查必要文件和目录
+    if not os.path.exists(MODEL_WEIGHTS_PATH):
+        print(f"错误: 本地模型权重文件 '{MODEL_WEIGHTS_PATH}' 不存在。请先运行 `download_model.py`。")
+        sys.exit(1)
+    if not os.path.isdir(CROPPED_DIR):
+        print(f"警告: 文件夹 '{CROPPED_DIR}' 不存在。将视为空白数据库进行处理。")
+        os.makedirs(CROPPED_DIR)
 
-# --- 7. 保存更新后的数据库 ---
-with open(EMBEDDINGS_FILE, 'wb') as f:
-    pickle.dump({'embeddings': updated_embeddings, 'filenames': updated_filenames}, f)
+    # 1. 加载现有数据库，找出已处理的文件
+    processed_files = set()
+    existing_data = {'embeddings': np.array([]), 'filenames': []}
+    if os.path.exists(EMBEDDINGS_FILE):
+        print(f"正在加载现有数据库: {EMBEDDINGS_FILE}")
+        with open(EMBEDDINGS_FILE, 'rb') as f:
+            existing_data = pickle.load(f)
+            processed_files = set(existing_data['filenames'])
+        print(f"数据库中已有 {len(processed_files)} 个已处理的文件。")
+    else:
+        print("未找到现有数据库，将创建新文件。")
 
-print("\n--- 数据库更新成功 ---")
-print(f"成功添加了 {len(new_embeddings)} 条新记录。")
-print(f"数据库现在总共有 {len(updated_filenames)} 条记录。")
-print("你可以重新运行 03_search_similar.py 来使用更新后的数据库进行搜索。")
+    # 2. 找出所有待处理的新文件
+    all_face_files = set(glob(os.path.join(CROPPED_DIR, '*.[jp][pn]g')))
+    new_files_to_process = sorted(list(all_face_files - processed_files))
+
+    if not new_files_to_process:
+        print("数据库已是最新，没有新的猫脸照片需要处理。")
+        sys.exit(0)
+    
+    print(f"发现 {len(new_files_to_process)} 个新文件需要处理。")
+
+    # 3. 加载模型并为新文件生成Embeddings
+    model = get_model(MODEL_WEIGHTS_PATH)
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    new_dataset = CatFaceDataset(new_files_to_process, transform=transform)
+    new_data_loader = DataLoader(new_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, collate_fn=collate_fn)
+    
+    new_embeddings, new_filenames = generate_embeddings_in_batches(model, new_data_loader)
+    
+    if new_embeddings.size == 0:
+        print("未能为任何新文件生成有效的Embeddings。数据库未更新。")
+        sys.exit(0)
+
+    # 4. 将新数据追加到数据库
+    if existing_data['embeddings'].size == 0:
+        updated_embeddings = new_embeddings
+    else:
+        updated_embeddings = np.vstack([existing_data['embeddings'], new_embeddings])
+    
+    updated_filenames = existing_data['filenames'] + new_filenames
+
+    # 5. 保存更新后的数据库
+    with open(EMBEDDINGS_FILE, 'wb') as f:
+        pickle.dump({'embeddings': updated_embeddings, 'filenames': updated_filenames}, f)
+        
+    print("\n--- 数据库更新成功 ---")
+    print(f"成功添加了 {len(new_filenames)} 条新记录。")
+    print(f"数据库现在总共有 {len(updated_filenames)} 条记录。")
+
+# --- 4. 主程序入口 ---
+if __name__ == '__main__':
+    main()

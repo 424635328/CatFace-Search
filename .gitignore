@@ -5,3 +5,9 @@ vscode_launcher.exe
 sync.exe
 test.py
 yolov9/yolov9-e.pt
+
+pretrained_models/
+
+yolov9/
+
+embeddings_tta.pkl

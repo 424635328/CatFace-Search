@@ -1,67 +1,91 @@
-# 备份当前的特征数据库 (embeddings.pkl) 以防意外。
-# 检查数据库中的每一条记录，验证其对应的图片文件路径是否真实存在于磁盘上。
-# 自动移除所有无效的记录（例如，路径不存在的文件名或非文件路径的ID）。
-# 保存一个清理过的、只包含有效记录的干净数据库。
+# 自动备份当前使用的特征数据库 (embeddings_tta.pkl)。
+# 高效地扫描数据库，精确找出并统计所有记录中对应的图片文件已不存在的“无效”条目。
+# 一次性地移除所有这些无效条目及其对应的特征向量。
+# 保存一个清理过的、100%健康的干净数据库，并保留原始备份以供恢复。
 
 # clean_database.py
 import pickle
 import numpy as np
 import os
-
-# --- 配置 ---
-EMBEDDINGS_FILE = 'embeddings.pkl'
-BACKUP_FILE = 'embeddings.pkl.bak' # 创建一个备份以防万一
-
-# --- 检查文件是否存在 ---
-if not os.path.exists(EMBEDDINGS_FILE):
-    print(f"数据库文件 {EMBEDDINGS_FILE} 不存在，无需清理。")
-    exit()
-
-# --- 1. 创建备份 ---
-print(f"正在备份当前数据库到 {BACKUP_FILE}...")
 import shutil
-shutil.copy(EMBEDDINGS_FILE, BACKUP_FILE)
+import sys
 
-# --- 2. 加载数据库 ---
-print("正在加载数据库...")
-with open(EMBEDDINGS_FILE, 'rb') as f:
-    data = pickle.load(f)
-embeddings = data['embeddings']
-filenames = data['filenames']
-print(f"加载了 {len(filenames)} 条记录。")
+# --- 1. 配置 ---
+# 同步目标文件为使用TTA技术的数据库
+EMBEDDINGS_FILE = 'embeddings_tta.pkl'
+# 备份文件名
+BACKUP_FILE = 'embeddings_tta.pkl.bak'
 
-# --- 3. 找出并移除无效记录 ---
-# 我们要移除所有不是有效文件路径的记录
-indices_to_remove = []
-cleaned_filenames = []
-for i, path in enumerate(filenames):
-    # 如果路径不是文件，或者它就是那个特定的ID，就标记为待删除
-    if not os.path.exists(path):
-        print(f"发现无效记录: '{path}' (索引 {i})，将予以移除。")
-        indices_to_remove.append(i)
+# --- 2. 核心功能函数 ---
 
-# 如果没有找到要移除的记录
-if not indices_to_remove:
-    print("数据库很干净，没有找到无效记录。")
-    os.remove(BACKUP_FILE) # 删除多余的备份
-    exit()
+def clean_database(db_path, backup_path):
+    """
+    检查并清理数据库文件，移除所有指向不存在文件的记录。
+    """
+    # 1. 检查文件是否存在
+    if not os.path.exists(db_path):
+        print(f"数据库文件 '{db_path}' 不存在，无需清理。")
+        return
 
-# --- 4. 创建新的干净数据 ---
-# np.delete 可以根据索引移除数组的行
-cleaned_embeddings = np.delete(embeddings, indices_to_remove, axis=0)
+    # 2. 创建备份
+    try:
+        print(f"正在备份当前数据库到 '{backup_path}'...")
+        shutil.copy(db_path, backup_path)
+    except Exception as e:
+        print(f"错误：创建备份失败: {e}")
+        return
 
-# 从文件名列表中移除元素
-# 我们倒序遍历，这样删除元素时不会影响前面元素的索引
-for index in sorted(indices_to_remove, reverse=True):
-    del filenames[index]
-cleaned_filenames = filenames
+    # 3. 加载数据库
+    print("正在加载数据库...")
+    try:
+        with open(db_path, 'rb') as f:
+            data = pickle.load(f)
+        embeddings = data['embeddings']
+        filenames = data['filenames']
+        original_count = len(filenames)
+        print(f"加载了 {original_count} 条记录。")
+    except Exception as e:
+        print(f"错误：加载数据库文件失败: {e}")
+        return
 
-# --- 5. 保存清理后的数据库 ---
-print(f"正在保存清理后的数据库...")
-with open(EMBEDDINGS_FILE, 'wb') as f:
-    pickle.dump({'embeddings': cleaned_embeddings, 'filenames': cleaned_filenames}, f)
+    # 4. 高效地找出所有有效的记录
+    # 使用列表推导式和enumerate来同时获取索引和路径
+    valid_indices = [i for i, path in enumerate(filenames) if os.path.exists(path)]
+    
+    invalid_count = original_count - len(valid_indices)
 
-print("\n--- 清理完成 ---")
-print(f"移除了 {len(indices_to_remove)} 条无效记录。")
-print(f"数据库现在包含 {len(cleaned_filenames)} 条有效记录。")
-print(f"原始数据库已备份为 {BACKUP_FILE}。")
+    if invalid_count == 0:
+        print("数据库很干净，没有找到无效记录。")
+        os.remove(backup_path)  # 删除多余的备份
+        print(f"已删除备份文件 '{backup_path}'。")
+        return
+        
+    print(f"发现 {invalid_count} 条无效记录，将予以移除。")
+
+    # 5. 使用布尔/高级索引创建新的干净数据，这比np.delete更高效
+    cleaned_embeddings = embeddings[valid_indices]
+    cleaned_filenames = [filenames[i] for i in valid_indices]
+
+    # 6. 保存清理后的数据库
+    print("正在保存清理后的数据库...")
+    try:
+        with open(db_path, 'wb') as f:
+            pickle.dump({'embeddings': cleaned_embeddings, 'filenames': cleaned_filenames}, f)
+    except Exception as e:
+        print(f"错误：保存清理后的数据库失败: {e}")
+        # 如果保存失败，可以考虑从备份中恢复
+        print("操作失败，请检查错误并可从备份文件中恢复。")
+        return
+
+    print("\n--- 清理完成 ---")
+    print(f"移除了 {invalid_count} 条无效记录。")
+    print(f"数据库现在包含 {len(cleaned_filenames)} 条有效记录。")
+    print(f"原始数据库已备份为 '{backup_path}'。")
+
+# --- 3. 主程序入口 ---
+def main():
+    """主执行函数"""
+    clean_database(EMBEDDINGS_FILE, BACKUP_FILE)
+
+if __name__ == '__main__':
+    main()

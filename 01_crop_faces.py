@@ -3,7 +3,7 @@
 # 根据定位结果，智能地裁剪出只包含猫脸的区域。
 # 将所有裁剪好的、标准化的猫脸图片保存到 cropped_faces 文件夹中。
 
-# 01_crop_faces.py (Optimized Version)
+# 01_crop_faces.py
 import torch
 import cv2
 import os
@@ -11,7 +11,7 @@ from glob import glob
 from tqdm import tqdm
 import sys
 
-# --- 1. 配置区域 (无变化) ---
+# --- 1. 配置区域 ---
 try:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 except NameError:
@@ -28,18 +28,18 @@ if not os.path.exists(WEIGHTS_PATH):
     sys.exit(1)
 
 # 注意：这里的路径可能需要根据你的实际结构调整
-RAW_IMG_DIR = os.path.join(SCRIPT_DIR, 'cat_retrieval/raw_images')
-CROPPED_DIR = os.path.join(SCRIPT_DIR, 'cat_retrieval/cropped_faces')
+RAW_IMG_DIR = os.path.join(SCRIPT_DIR, 'cat_retrieval/cropped_faces')
+CROPPED_DIR = os.path.join(SCRIPT_DIR, 'cat_retrieval/sec_cropped')
 
 CONF_THRESHOLD = 0.3
 IMG_SIZE = 640
 CAT_CLASS_ID = 15
 
-# --- 2. 初始化 (无变化) ---
+# --- 2. 初始化 ---
 os.makedirs(CROPPED_DIR, exist_ok=True)
 os.makedirs(RAW_IMG_DIR, exist_ok=True)
 
-# --- 3. 加载YOLOv9模型 (无变化) ---
+# --- 3. 加载YOLOv9模型 ---
 print("正在加载YOLOv9模型...")
 try:
     model = torch.hub.load(YOLO_DIR, 'custom', path=WEIGHTS_PATH, source='local', trust_repo=True)
@@ -59,10 +59,10 @@ if not image_paths:
 print(f"在 '{RAW_IMG_DIR}' 中找到 {len(image_paths)} 张图片，开始处理...")
 
 total_faces_cropped = 0
-total_faces_skipped = 0 # <-- 新增一个计数器
+total_faces_skipped = 0
 for img_path in tqdm(image_paths, desc="裁剪猫脸"):
     try:
-        # --- NEW: 提前构建潜在的输出文件名来进行检查 ---
+        # --- 提前构建潜在的输出文件名来进行检查 ---
         # 我们先检查一下，如果一张图片只有一个猫脸，对应的文件是否已存在。
         # 这是一个初步的快速跳过，对于单猫图片很有效。
         base_filename = os.path.basename(img_path)
@@ -92,7 +92,6 @@ for img_path in tqdm(image_paths, desc="裁剪猫脸"):
             continue
 
         for i, det in enumerate(cat_detections):
-            # --- 关键改动在这里 ---
             # 1. 构建将要保存的文件名
             base_filename = os.path.basename(img_path)
             filename, ext = os.path.splitext(base_filename)

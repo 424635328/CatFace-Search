@@ -1,0 +1,5 @@
+ pip uninstall numpy
+
+ pip install numpy=1.24.6
+
+ 运行过程中会自动安装numpy2.x,需要手动卸载,然后重新运行程序
