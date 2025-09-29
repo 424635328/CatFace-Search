@@ -22,7 +22,7 @@ EMBEDDINGS_FILE = 'embeddings_tta.pkl'
 # 本地模型权重路径
 MODEL_WEIGHTS_PATH = 'pretrained_models/resnet50-weights.pth'
 # 把你要查询的猫脸图片放在这里！
-QUERY_IMAGE_PATH = 'query\\8dc365c9-a34b-4e2f-807b-9e75be81fd21.png'
+QUERY_IMAGE_PATH = 'query\\mmexport1754038297653.jpg'
 TOP_K = 10 # 找出最相似的5张图片
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
