@@ -4,6 +4,10 @@
 <img width="2459" height="1234" alt="bd2030c4-9fd0-4aac-baba-d775c89ac6a7" src="docs/bd2030c4-9fd0-4aac-baba-d775c89ac6a7.png" />
 <img width="2335" height="1172" alt="cb94c72e-e5c7-4efb-b708-8f915f452c9e" src="docs/cb94c72e-e5c7-4efb-b708-8f915f452c9e.png" />
 
+## 更新方向
+
+目前模型关注猫身整体，有可能也会将背景考虑进去，所以现在正在微调一个能够精准裁剪出猫咪正脸的YOLOv9模型，然后再测试精准性
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch-orange.svg)
