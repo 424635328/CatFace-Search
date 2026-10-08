@@ -1,24 +1,19 @@
 @echo off
 chcp 65001>nul
-echo GitHub Sync Tool
-echo git pull
+echo GitHub Sync Tool - preflight, then pull / add / commit / push
+echo.
+echo The gate itself lives in tools\sync.ps1 so it is reviewable and versioned.
+echo Bypass the gate with:  pwsh -File tools\sync.ps1 -SkipPreflight
+echo.
 
-git pull
+pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sync.ps1" %*
+set SYNC_EXIT=%ERRORLEVEL%
 
-echo git add
-
-git add .
-
-echo git commit
-
-git commit -m "%date:~-10% %time%"
-
-echo git push
-
-git push
-
-echo git status
-
-git status
-
+echo.
+if not "%SYNC_EXIT%"=="0" (
+    echo SYNC FAILED with exit code %SYNC_EXIT%
+) else (
+    echo SYNC OK
+)
 pause
+exit /b %SYNC_EXIT%

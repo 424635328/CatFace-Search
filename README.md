@@ -235,6 +235,16 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 
 一次失败的 CI 要花两个来回（推送 → 排队 → 失败 → 修 → 再推）。本仓库第一次真实 CI 运行 5 个 job 里 3 个失败，而**全部能在推送前本地发现**——三个坑都是"本地检查与 CI 接近但不相同"，详见 [`docs/PASS-CI-FIRST-TRY.md`](docs/PASS-CI-FIRST-TRY.md)。
 
+**3. 之后同步就双击 `s.bat`**
+
+`s.bat` 不再裸跑 `git add . && git push`，它调用 `tools\sync.ps1`：**先 preflight，过了才 pull / commit / push**。自检不过就什么都不提交、不推送。
+
+```powershell
+.\s.bat                                          # 双击等价，带自检
+pwsh -File tools\sync.ps1 -SkipPreflight         # 确实需要绕过时（会打印警告）
+pwsh -File tools\sync.ps1 -Message "fix: ..."    # 自定义提交信息
+```
+
 ---
 
 ### 常用入口一览
@@ -251,6 +261,7 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 | 审计一份新数据源（是不是猫脸） | `python -m tools.audit_species --directory <dir>` |
 | 语料统计 | `python -m tools.analyze_corpus --root <dir>` |
 | 推送前自检（省一整个 CI 回合） | `.\tools\preflight.ps1` |
+| 自检 + 同步一条龙 | `.\s.bat`（等价 `pwsh -File tools\sync.ps1`） |
 
 ---
 
@@ -305,6 +316,8 @@ python -m tools.analyze_species_recognition  # 全物种识别统计（跨物种
 python -m tools.run_benchmark_suite  # 一键跑完整基准并出报告
 python -m tools.check_docs         # 校验文档里引用的路径真实存在（防文档腐化）
 ```
+
+同步脚本 `tools/sync.ps1`（`s.bat` 调用它）按固定顺序执行：**preflight → pull → commit → push**。顺序是有意的：先验证本地树，再拉取，这样一次 pull 带来的改动不会在未检查的情况下被推出去；`commit` 时还会再过一道 pre-commit hook，与 preflight 相互独立。
 ## ⏸️ 训练可随时暂停与续训
 
 每个 epoch 结束都会原子化检查点，中断不丢进度、续训轨迹与不中断时一致（状态含优化器动量、调度器位置、采样器 epoch、RNG）：
