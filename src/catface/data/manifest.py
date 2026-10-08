@@ -14,7 +14,8 @@ import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import asdict, dataclass, field, fields as dataclass_fields
+from dataclasses import asdict, dataclass, field
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
@@ -117,7 +118,7 @@ class ManifestStats:
 def sha1_file(path: str | Path, chunk: int = 1 << 20) -> str:
     """Hash a file's bytes; used for duplicate detection across corpora."""
     digest = hashlib.sha1()
-    with open(path, "rb") as handle:
+    with Path(path).open("rb") as handle:
         while True:
             block = handle.read(chunk)
             if not block:
@@ -279,8 +280,8 @@ def assign_identity_splits(
     rng.shuffle(shuffled)
 
     n = len(shuffled)
-    n_train = max(1, int(round(n * train_ratio)))
-    n_val = int(round(n * val_ratio))
+    n_train = max(1, round(n * train_ratio))
+    n_val = round(n * val_ratio)
     # Guarantee at least one identity in each of val/test when the corpus allows.
     if n >= 3:
         n_train = min(n_train, n - 2)

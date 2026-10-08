@@ -243,7 +243,7 @@ def download(
             request = urllib.request.Request(artifact.url)
             request.add_header("User-Agent", "catface-search/2.0")
             mode = "ab" if resume_from else "wb"
-            with urllib.request.urlopen(request, timeout=120) as response, open(part, mode) as handle:
+            with urllib.request.urlopen(request, timeout=120) as response, part.open(mode) as handle:
                 while True:
                     block = response.read(1 << 20)
                     if not block:
@@ -288,7 +288,9 @@ def extract(
     archive: Path,
     destination: Path,
     expected_members: int | None = None,
-    overwrite: bool = False,
+    # Part of the public signature so callers stay explicit; the implementation always
+    # overwrites today, and a marker-based skip would be added here.
+    _overwrite: bool = False,
 ) -> Path:
     """Extract an archive, refusing to trust a partially-written one.
 

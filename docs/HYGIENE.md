@@ -53,6 +53,38 @@ The same applies to comments in the guard itself. **A rule the guard obeys needs
 exceptions** — and the guard is only trustworthy because it has been shown to flag its own
 author, repeatedly.
 
+## The `.gitignore` blind spot, and how it was found
+
+A pattern with no leading slash matches that name at **any depth**. A `data/` line intended for
+the dataset directory therefore also excluded `src/catface/data/` — six modules of the source
+tree — which meant the package was **never committed**. Every local run passed, because the
+files were still in the working tree; only a fresh clone failed, and only at import time. CI
+caught it on both Python versions, and the error said nothing about `.gitignore`.
+
+The same blind spot hid a second problem. Ruff honours `.gitignore` by default, so those six
+modules were also never linted. The moment they entered version control, CI reported twelve
+lint errors in them — while a local `ruff check` still reported a clean tree. That is why the
+CI lint step now runs with `--no-respect-gitignore`: a file that is not linted is not checked,
+and the reason it is not linted may be the very bug being hunted.
+
+Three guards now cover this class of failure, and they exist because the failure was invisible
+locally by construction:
+
+| Guard | Catches |
+|---|---|
+| `test_every_python_source_file_is_tracked` | a source file that exists but git will not deliver |
+| `test_no_source_directory_is_ignored` | a `.gitignore` rule actively excluding source |
+| `test_project_owned_ignores_are_anchored` | the specific unanchored pattern that caused it |
+
+Practical rules that follow:
+
+* Anchor a project-owned directory with a leading slash (`/data/`). Leave third-party names
+  unanchored on purpose, so a vendored copy nested anywhere is still ignored.
+* After changing `.gitignore`, check `git ls-files --others --exclude-standard` for source
+  paths that should have been added.
+* Remember that `git check-ignore` reports what the *rules* say, not what is *tracked*: an
+  already-tracked file stays tracked even when a pattern matches it.
+
 ## Relationship to `.gitignore`
 
 `.gitignore` covers files that have never been tracked. It does **not** apply to a file that is

@@ -69,15 +69,15 @@ class Box(NamedTuple):
         matching.
         """
         side = max(self.width, self.height)
-        side = int(round(side * (1.0 + 2.0 * pad_ratio)))
+        side = round(side * (1.0 + 2.0 * pad_ratio))
         centre_x = (self.x1 + self.x2) / 2.0
         centre_y = (self.y1 + self.y2) / 2.0
         half = side / 2.0
         return Box(
-            int(round(centre_x - half)),
-            int(round(centre_y - half)),
-            int(round(centre_x + half)),
-            int(round(centre_y + half)),
+            round(centre_x - half),
+            round(centre_y - half),
+            round(centre_x + half),
+            round(centre_y + half),
         )
 
 
@@ -262,14 +262,13 @@ def apply_affine(image: np.ndarray, matrix: np.ndarray, size: int) -> np.ndarray
     """Warp an image by the 2x3 affine matrix and resize to ``size`` square."""
     import cv2
 
-    warped = cv2.warpAffine(
+    return cv2.warpAffine(
         image,
         matrix,
         (size, size),
         flags=cv2.INTER_CUBIC,
         borderMode=cv2.BORDER_REPLICATE,
     )
-    return warped
 
 
 def image_sha1(array: np.ndarray) -> str:

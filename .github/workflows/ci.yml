@@ -26,9 +26,15 @@ jobs:
           python-version: "3.11"
       - run: python -m pip install "ruff>=0.6"
       - name: Ruff lint
-        run: ruff check src tests tools
+        # ``--no-respect-gitignore`` is deliberate. Ruff honours .gitignore by default, so a
+        # source file that .gitignore accidentally excludes is silently not linted — which is
+        # how an ignored `src/catface/data/` package stayed unlinted until it was committed,
+        # at which point CI reported twelve errors that no local run had shown. Linting
+        # everything removes the blind spot.
+        run: ruff check --no-respect-gitignore src tests tools
       - name: Ruff format check
-        run: ruff format --check src tests tools || true   # advisory until the tree is fully formatted
+        # Advisory until the tree is fully formatted.
+        run: ruff format --check --no-respect-gitignore src tests tools || true
 
   test:
     name: test (python ${{ matrix.python-version }})
