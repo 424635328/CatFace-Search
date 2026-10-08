@@ -15,5 +15,10 @@ if not "%SYNC_EXIT%"=="0" (
 ) else (
     echo SYNC OK
 )
-pause
+
+rem Keep the window open for a double-click, but never block an unattended call:
+rem -NoPause must suppress this pause too, not only the one inside sync.ps1.
+echo %* | findstr /C:"NoPause" >nul
+if errorlevel 1 pause
+
 exit /b %SYNC_EXIT%
