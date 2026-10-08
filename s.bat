@@ -26,11 +26,14 @@ if errorlevel 1 (
     goto :report
 )
 
-rem Forward arguments unchanged; the default commit message is built inside sync.ps1 with Get-Date,
-rem deliberately not here, where %date%/%time% vary by locale and nested backquoted for /f layers
-rem fail confusingly.
-pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sync.ps1" %*
+rem Switch to this file's own directory before invoking PowerShell. Two reasons, both learned the
+rem hard way: (1) a double-click or a shortcut with a different "start in" leaves the repository
+rem outside the process working directory, so git searches the wrong tree; (2) quoting the path
+rem inline is a trap, because %~dp0 ends in a backslash and the closing quote gets escaped.
+pushd "%~dp0"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "tools\sync.ps1" %*
 set "SYNC_EXIT=%ERRORLEVEL%"
+popd
 
 :report
 echo.

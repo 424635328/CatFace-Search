@@ -85,7 +85,12 @@ param(
     [Alias('NoPause')]
     [switch]$NoWait,
 
-    [switch]$Wait
+    [switch]$Wait,
+
+    # Where to look for the repository. s.bat passes its own directory, so a double-click or a
+    # shortcut that starts in some other working directory still syncs the intended repository
+    # rather than reporting "not inside a git working tree".
+    [string]$RepoRoot
 )
 
 # Named exit codes: a script other scripts call needs stable, documented codes. One bare "exit 1"
@@ -115,6 +120,16 @@ function Write-Fail { param([string]$Text) Write-Host $Text -ForegroundColor Red
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Fail "git is not on PATH; nothing to sync with."
     exit $EXIT_USAGE
+}
+
+# Start from the requested directory when the caller supplied one, so the repository is found by
+# location rather than by whatever the current directory happens to be.
+if ($RepoRoot) {
+    if (-not (Test-Path -LiteralPath $RepoRoot)) {
+        Write-Fail "repository path does not exist: $RepoRoot"
+        exit $EXIT_USAGE
+    }
+    Set-Location $RepoRoot
 }
 
 $repoRoot = (& git rev-parse --show-toplevel 2>$null)
