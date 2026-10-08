@@ -115,7 +115,14 @@ class TestFingerprint:
         assert a.fingerprint() != b.fingerprint()
 
     def test_fingerprint_ignores_output_paths(self):
-        """Two runs with the same recipe must share a fingerprint even in different dirs."""
+        """Two runs with the same recipe must share a fingerprint even in different dirs.
+
+        Output locations are not part of the recipe. Note this test previously passed for the
+        wrong reason: it relied on ``to_mapping`` returning the *relative* strings it was
+        given, which masked that the same config loaded from two directories produced two
+        different fingerprints. ``tests/test_repo_hygiene.py`` now pins the cross-directory
+        case that exposed it.
+        """
         a = PipelineConfig(output_dir="artifacts/one")
         b = PipelineConfig(output_dir="artifacts/two")
         assert a.fingerprint() == b.fingerprint()

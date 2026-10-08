@@ -312,6 +312,11 @@ class PipelineConfig(_ConfigSection):
     """Free-form carry-through values (notes, ticket ids) recorded verbatim."""
 
     def __post_init__(self) -> None:
+        # Captured before any path is resolved, because ``_resolve`` replaces the relative
+        # form with an absolute one. ``fingerprint`` needs the base to recover the relative
+        # relationship, so that the same config keeps one identity across directories.
+        if not hasattr(self, "_base_dir"):
+            object.__setattr__(self, "_base_dir", Path.cwd())
         self.output_dir = _resolve(self.output_dir)
         if self.device != "auto" and not (
             self.device == "cpu" or self.device.startswith("cuda")
@@ -360,14 +365,56 @@ class PipelineConfig(_ConfigSection):
     # only the fingerprint, which is what ties artifacts back to a recipe.
 
     def fingerprint(self) -> str:
-        """Stable short hash of the semantic config (ignores output paths)."""
+        """Stable short hash of the *semantic* config, independent of where it was loaded.
+
+        Every path in the config is resolved to an absolute path at construction time, so
+        hashing the resolved values would make the same recipe look like a different one when
+        run from another directory or another checkout. Paths are therefore re-expressed
+        relative to the current working directory before hashing, which is exactly the
+        grounding they were resolved against.
+
+        This is what makes a fingerprint usable as a recipe identity: two runs can be compared
+        by hash without first normalising their paths, and an artifact can be matched to the
+        config that produced it wherever that config was invoked from.
+        """
         payload = self.to_mapping()
-        for key in ("output_dir",):
-            payload.pop(key, None)
+
+        # Output locations are stripped outright: where a run writes its results is not part
+        # of the recipe, and treating it as such made two identical experiments look like two.
+        # ``output_dir`` has a per-section default, so all four sites are removed.
+        payload.pop("output_dir", None)
         for section in ("train", "index"):
             if isinstance(payload.get(section), MutableMapping):
                 payload[section].pop("output_dir", None)
-        blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+        def relativise(value: Any) -> Any:
+            if not isinstance(value, str):
+                return value
+            try:
+                candidate = Path(value)
+            except (TypeError, ValueError):  # pragma: no cover - defensive
+                return value
+            # Only paths that a config would legitimately carry; a bare string such as a
+            # backbone name must not be reshaped.
+            if not candidate.is_absolute():
+                return value
+            for anchor in (Path(self._base_dir), Path.cwd()):
+                try:
+                    return candidate.relative_to(anchor).as_posix()
+                except ValueError:
+                    continue
+            # Outside both anchors — an external dataset or checkpoint. Keep it absolute,
+            # because that information is genuinely part of the recipe.
+            return candidate.as_posix()
+
+        def walk(node: Any) -> Any:
+            if isinstance(node, MutableMapping):
+                return {key: walk(item) for key, item in node.items()}
+            if isinstance(node, (list, tuple)):
+                return [walk(item) for item in node]
+            return relativise(node)
+
+        blob = json.dumps(walk(payload), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
     def resolve_device(self) -> str:

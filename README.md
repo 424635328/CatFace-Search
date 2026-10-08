@@ -166,6 +166,17 @@ python -m tools.analyze_species_recognition  # 全物种识别统计（跨物种
 python -m tools.run_benchmark_suite  # 一键跑完整基准并出报告
 ```
 
+### 首次克隆后安装 git 守卫（一次即可）
+
+本仓库用 `git add . && git push` 同步到公开远端，因此以下三类错误一旦推送就**不可撤销**，已做成提交时自动拦截：机器特有绝对路径、凭据赋值、>5 MB 的大文件。
+
+```powershell
+.\tools\install-git-hooks.ps1
+```
+
+细节与三层防线的分工见 [`docs/HYGIENE.md`](docs/HYGIENE.md)。
+
+
 ## ⏸️ 训练可随时暂停与续训
 
 每个 epoch 结束都会原子化检查点，中断不丢进度、续训轨迹与不中断时一致（状态含优化器动量、调度器位置、采样器 epoch、RNG）：

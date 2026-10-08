@@ -1,0 +1,89 @@
+#!/bin/sh
+# Pre-commit guard for a repository that is published with `git add . && git push`.
+#
+# Why a hook and not just tests
+# -----------------------------
+# tests/test_repo_hygiene.py asserts the same properties, but tests run when someone
+# remembers to run them. The failure mode this protects against - a credential or a
+# machine-specific absolute path reaching a public remote - is irreversible once pushed, so
+# the check belongs at the moment of the commit, where it cannot be forgotten.
+#
+# It deliberately checks the *staged* content, because that is what the commit will contain,
+# not the working tree, which may differ.
+#
+# Install:  cp tools/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Bypass:   git commit --no-verify      (use when the finding is a genuine false positive)
+#
+# Note: example paths in comments use a non-existent drive letter on purpose. A real path in
+# a comment is indistinguishable from a real path in code, and the guard treats both alike.
+
+set -eu
+
+fail=0
+
+# --- 1. machine-specific absolute paths -------------------------------------
+# A drive letter or a user-home path pinned to this machine breaks every other clone.
+bad_paths=$(git diff --cached --name-only --diff-filter=ACM | while read -r f; do
+    [ -f "$f" ] || continue
+    case "$f" in
+        *.png|*.jpg|*.jpeg|*.gif|*.webp|*.zip|*.gz|*.pt|*.pth|*.pkl|*.bin|*.onnx|*.npy) continue ;;
+        docs/archive/third-party/*) continue ;;
+    esac
+    # Strip URLs before looking for paths. A URL scheme and a drive letter share the same
+    # "letter, colon, separator" shape, so without this every documentation link in the
+    # repository would be reported as a machine-specific path.
+    sed -E 's#(https?|ftp|file|ssh|git)://[^ ]*#URL#g' "$f" \
+        | grep -nE '(^|[^A-Za-z0-9])[A-Za-z]:[\\/]|/home/[A-Za-z0-9._-]+|/Users/[A-Za-z0-9._-]+' \
+        | sed "s#^#$f:#" || true
+done)
+
+if [ -n "$bad_paths" ]; then
+    echo "pre-commit: machine-specific absolute paths found:" >&2
+    echo "$bad_paths" | head -20 >&2
+    echo "  -> resolve paths relative to the config or __file__ instead" >&2
+    fail=1
+fi
+
+# --- 2. credentials ---------------------------------------------------------
+# Variable names only; the value is never printed.
+bad_secrets=$(git diff --cached --name-only --diff-filter=ACM | while read -r f; do
+    [ -f "$f" ] || continue
+    case "$f" in
+        *.png|*.jpg|*.jpeg|*.gif|*.webp|*.zip|*.gz|*.pt|*.pth|*.pkl|*.bin|*.onnx|*.npy) continue ;;
+    esac
+    grep -nE '(KAGGLE_KEY|HF_TOKEN|HUGGINGFACE_TOKEN|AWS_SECRET_ACCESS_KEY|GITHUB_TOKEN|API_KEY)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}' "$f" \
+        | sed -E 's/=.*/=<redacted>/' | sed "s#^#$f:#" || true
+done)
+
+if [ -n "$bad_secrets" ]; then
+    echo "pre-commit: possible credentials in staged content (values redacted):" >&2
+    echo "$bad_secrets" | head -10 >&2
+    echo "  -> read them from the environment instead of the file" >&2
+    fail=1
+fi
+
+# --- 3. oversized files -----------------------------------------------------
+# GitHub rejects >100 MB and warns >50 MB; catching it here avoids a failed push.
+big=$(git diff --cached --name-only --diff-filter=ACM | while read -r f; do
+    [ -f "$f" ] || continue
+    size=$(wc -c < "$f")
+    if [ "$size" -gt 5242880 ]; then
+        echo "$f ($((size / 1048576)) MB)"
+    fi
+done)
+
+if [ -n "$big" ]; then
+    echo "pre-commit: staged files over 5 MB:" >&2
+    echo "$big" >&2
+    echo "  -> add to .gitignore, or use Git LFS if the file is genuinely source" >&2
+    fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "" >&2
+    echo "Commit blocked. Fix the findings, or use 'git commit --no-verify' if a finding" >&2
+    echo "is a false positive." >&2
+    exit 1
+fi
+
+exit 0

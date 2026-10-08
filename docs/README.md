@@ -9,6 +9,7 @@ Everything a reviewer needs, ordered from "what is this" to "show me the evidenc
 | [`../README.md`](../README.md) | What the system does, how to install and run it, and the two v1 corrections. |
 | [`BENCHMARK.md`](BENCHMARK.md) | The measured comparison: baselines vs. the upgraded system, protocol, and significance. |
 | [`HISTORY.md`](archive/HISTORY.md) | Where the v1 scripts went, which claims were wrong and why, and every defect found in v2. |
+| [`HYGIENE.md`](HYGIENE.md) | The pre-commit guards, why they exist, and why they carry no exception lists. |
 
 ## Evidence
 
