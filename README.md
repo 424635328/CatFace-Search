@@ -166,7 +166,7 @@ $env:KAGGLE_KEY      = "你的key"
 ```powershell
 # 4. 下载 13 106 张猫脸 / 509 只个体（11.2 GB）
 #    这一步用多流并行下载器：实测 12 并发可达 13.8 MB/s，单流只有 2.2 MB/s
-#    （见 docs/HISTORY.md 与「常见错误」一节：不要用 curl 单流下这个文件）
+#    （见 docs/archive/HISTORY.md 与「常见错误」一节：不要用 curl 单流下这个文件）
 python -m tools.parallel_download `
   --url "https://www.kaggle.com/api/v1/datasets/download/timost1234/cat-individuals" `
   --out "data/raw/kaggle_cat_individuals/cat-individuals.zip" `

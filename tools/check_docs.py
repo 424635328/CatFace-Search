@@ -35,6 +35,17 @@ SUFFIXES = r"py|md|json|yaml|yml|jsonl|ps1|toml|txt|csv"
 #: A path quoted in backticks.
 QUOTED_PATH = re.compile(rf"`([A-Za-z0-9_./\\-]+\.(?:{SUFFIXES}))`")
 
+#: A path written in prose without backticks, such as "see docs/archive/HISTORY.md".
+#: This rule exists because the backtick-only rule missed a real reference: an outdated
+#: ``docs/HISTORY.md`` sat in a comment inside a code block and nothing flagged it. Anchoring on
+#: the repository's own top-level directories keeps ordinary prose from matching.
+ROOT_DIRS = (".github", "configs", "docs", "scripts", "src", "tests", "tools")
+_ROOT_ALTERNATION = "|".join(re.escape(name) for name in ROOT_DIRS)
+BARE_PATH = re.compile(
+    rf"(?<![\w./\\-])((?:{_ROOT_ALTERNATION})"
+    rf"(?:/[A-Za-z0-9_.\-]+)*/[A-Za-z0-9_.\-]+\.(?:{SUFFIXES}))"
+)
+
 #: Directory names whose contents are documentation-relative illustrations, not path claims.
 #: ``catface/`` and ``query/`` appear in architecture diagrams and sample output that show how a
 #: path looked on the machine that produced the text, not where a file lives in the repository.
@@ -44,8 +55,19 @@ IGNORED_PREFIXES = ("catface/", "query/")
 PACKAGE_ROOTS = ("src", "src/catface")
 
 
+def references(text: str) -> set[str]:
+    """Return every path this document appears to claim exists."""
+    found = set(QUOTED_PATH.findall(text))
+    # A backticked path is already covered; drop the bare-pattern match nested inside it so the
+    # same reference is not reported twice.
+    for candidate in BARE_PATH.findall(text):
+        if not any(candidate in quoted for quoted in found):
+            found.add(candidate)
+    return found
+
+
 def check_document(path: Path) -> list[str]:
-    """Return the quoted paths in ``path`` that do not resolve from anywhere sensible.
+    """Return the paths in ``path`` that do not resolve from anywhere sensible.
 
     A path is accepted when it resolves from the repository root or from the directory holding the
     document, because both conventions appear in this project: the README links ``docs/...`` from
@@ -53,7 +75,7 @@ def check_document(path: Path) -> list[str]:
     """
     text = path.read_text(encoding="utf-8")
     missing: list[str] = []
-    for raw in sorted(set(QUOTED_PATH.findall(text))):
+    for raw in sorted(references(text)):
         relative = raw.replace("\\", "/").removeprefix("./")
         if any(relative.startswith(prefix) for prefix in IGNORED_PREFIXES):
             continue
