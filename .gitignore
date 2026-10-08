@@ -19,7 +19,7 @@ dist/
 *.egg-info/
 .eggs/
 *.egg
-pip-wheel-metadata/
+pip-wheel-meta/data/
 .coverage
 .coverage.*
 coverage.xml
@@ -31,6 +31,18 @@ htmlcov/
 .pytest_cache/
 .ipynb_checkpoints/
 
+# NOTE ON ANCHORING — read before adding a directory pattern.
+#
+# A pattern with no leading slash, such as `data/`, matches that directory name at ANY depth.
+# That is how `src/catface/data/` — the whole data subpackage, six modules — was silently kept
+# out of version control, so a fresh clone failed to import `catface.data` while every local
+# run passed, because the files were still present in the working tree. CI caught it on both
+# Python versions; the cause was not obvious from the error.
+#
+# Project-owned directories are therefore anchored with a leading slash. Third-party
+# directories (yolov9/, pretrained_models/, cat_retrieval/) stay unanchored on purpose so a
+# vendored copy nested anywhere is still ignored.
+
 # --- Raw and derived corpora -------------------------------------------------
 # Datasets are large, third-party and licence-restricted: they are re-acquired with
 # `catface acquire` / `tools/parallel_download.py`, never committed.
@@ -39,8 +51,8 @@ htmlcov/
 # pair images), all regenerable from the acquisition state plus the pipeline code.
 # Keeping them out keeps the repository small enough to clone, and makes the exact
 # bytes a function of the code and the pinned dataset rather than of a stray commit.
-data/
-cat_retrieval/
+/data/
+/cat_retrieval/
 images.tar.gz
 *.tar.gz
 *.zip
@@ -48,7 +60,7 @@ images.tar.gz
 # --- Model weights and checkpoints -------------------------------------------
 # `python download_model.py` regenerates the ResNet-50 weights, and every trained
 # checkpoint is reproducible from the config + commit pair recorded in run.json.
-pretrained_models/
+/pretrained_models/
 *.pth
 *.pt
 *.ckpt
@@ -69,12 +81,12 @@ pretrained_models/
 # Every benchmark and training run writes its own directory. The reports worth
 # keeping are summarised into docs/; raw runs stay out of version control because
 # they embed a machine-specific environment fingerprint.
-artifacts/
-outputs/
-runs/
-wandb/
-lightning_logs/
-mlruns/
+/artifacts/
+/outputs/
+/runs/
+/wandb/
+/lightning_logs/
+/mlruns/
 
 # --- Third-party checkouts ---------------------------------------------------
 # The legacy pipeline expected a vendored YOLOv9 clone with its weights.

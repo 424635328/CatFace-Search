@@ -337,6 +337,73 @@ class TestDeclaredPythonFloor:
         assert any("dataclass(" in key for key in self._too_new_constructs())
 
 
+class TestSourceIsTracked:
+    """Source files must be visible to git.
+
+    This exists because of a real failure with a deceptive signature. ``src/catface/data/`` --
+    the entire data subpackage, six modules -- was silently excluded from version control by a
+    ``.gitignore`` pattern with no leading slash, which matches a directory name at *any* depth.
+    Every local test passed, because the files were still sitting in the working tree. Only a
+    fresh clone failed, and only at import time, which is where CI found it.
+
+    The lesson generalises: a file that exists but is not tracked looks perfectly healthy until
+    somebody else clones the repository.
+    """
+
+    SOURCE_ROOTS = ("src", "tests", "tools")
+
+    def test_every_python_source_file_is_tracked(self):
+        tracked = set(tracked_files())
+        missing: list[str] = []
+        for root in self.SOURCE_ROOTS:
+            for path in sorted((REPO_ROOT / root).rglob("*.py")):
+                rel = path.relative_to(REPO_ROOT).as_posix()
+                if rel in tracked:
+                    continue
+                # A directory-level ignore is the failure mode being guarded against; an
+                # individual file absent from the index would fail the same way.
+                missing.append(rel)
+        assert not missing, (
+            f"{len(missing)} Python source file(s) exist but are not tracked by git, so a "
+            "clone would be broken:\n  " + "\n  ".join(missing[:20])
+        )
+
+    def test_no_source_directory_is_ignored(self):
+        """Distinguish 'not added yet' from 'actively ignored', which need different fixes."""
+        ignored: list[str] = []
+        for root in self.SOURCE_ROOTS:
+            for path in sorted((REPO_ROOT / root).rglob("*.py")):
+                rel = path.relative_to(REPO_ROOT).as_posix()
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "-q", rel],
+                    cwd=REPO_ROOT, capture_output=True, check=False,
+                )
+                if result.returncode == 0:
+                    ignored.append(rel)
+        assert not ignored, (
+            ".gitignore is excluding source files:\n  " + "\n  ".join(ignored[:20])
+            + "\nAnchored patterns (a leading slash) are almost always what is wanted for "
+            "project-owned directories."
+        )
+
+    def test_project_owned_ignores_are_anchored(self):
+        """Pin the specific mistake: an unanchored pattern matching a project directory."""
+        text = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        patterns = [
+            line.strip() for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        # Names that also occur as a directory inside the source tree.
+        project_dirs = {"data", "artifacts", "outputs", "runs"}
+        unanchored = [
+            pattern for pattern in patterns
+            if pattern.rstrip("/") in project_dirs and not pattern.startswith("/")
+        ]
+        assert not unanchored, (
+            f"these .gitignore patterns are unanchored and will match inside src/: {unanchored}"
+        )
+
+
 class TestPreCommitHook:
     """The hook is the same guard as above, but at the moment it cannot be forgotten."""
 
