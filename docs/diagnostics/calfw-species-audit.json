@@ -1,0 +1,13 @@
+{
+  "source": "data/calfw/pairs.csv",
+  "sample_size": 300,
+  "detector": "OpenCV YuNet (human faces)",
+  "result": {
+    "images": 300,
+    "unreadable": 0,
+    "images_with_human_face": 300,
+    "human_face_rate": 1.0,
+    "mean_face_confidence": 0.9203
+  },
+  "verdict": "HUMAN faces \u2014 do not use as a cat-face benchmark"
+}

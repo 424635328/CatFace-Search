@@ -1,0 +1,13 @@
+{
+  "source": "docs/diagnostics/reference_samples",
+  "sample_size": 150,
+  "detector": "OpenCV YuNet (human faces)",
+  "result": {
+    "images": 150,
+    "unreadable": 0,
+    "images_with_human_face": 10,
+    "human_face_rate": 0.0667,
+    "mean_face_confidence": 0.0537
+  },
+  "verdict": "no evidence of human faces"
+}

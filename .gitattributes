@@ -1,0 +1,78 @@
+# Normalise line endings on checkout/commit so that a Windows-authored repository does
+# not show spurious diffs on Linux CI (or vice versa). `text=auto` lets Git decide per
+# file; explicit `text` / `binary` entries below override it where that matters.
+* text=auto eol=lf
+
+# --- Source and configuration ------------------------------------------------
+*.py        text diff=python
+*.pyi       text diff=python
+*.ipynb     text
+*.toml      text
+*.yaml      text
+*.yml       text
+*.json      text
+*.jsonl     text
+*.md        text
+*.txt       text
+*.cfg       text
+*.ini       text
+*.sh        text eol=lf
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+Dockerfile  text
+Makefile    text
+
+# --- Generated corpora and reports ------------------------------------------
+# Declared in .gitignore, but listed here too so an explicitly forced add still gets
+# the correct treatment (never diffed, never line-ending converted).
+*.jsonl     -diff
+*.csv       -diff
+*.parquet   binary
+*.pkl       binary
+*.npy       binary
+*.npz       binary
+
+# --- Model weights and binary artefacts -------------------------------------
+# Non-textual by definition; treating them as text would corrupt them on checkout.
+*.pt        binary
+*.pth       binary
+*.ckpt      binary
+*.safetensors binary
+*.onnx      binary
+*.tflite    binary
+*.bin       binary
+*.index     binary
+*.faiss     binary
+
+# --- Archives and media ------------------------------------------------------
+*.zip       binary
+*.tar       binary
+*.gz        binary
+*.tgz       binary
+*.7z        binary
+*.jpg       binary
+*.jpeg      binary
+*.png       binary
+*.bmp       binary
+*.webp      binary
+*.gif       binary
+*.pdf       binary
+*.ttf       binary
+*.woff      binary
+*.woff2     binary
+
+# --- Repository statistics ---------------------------------------------------
+# Benchmark result tables are appended by tools; they would otherwise make every
+# historical diff unreadable in blame.
+docs/diagnostics/*.json  -diff
+docs/diagnostics/*.md    -diff
+
+# --- Linguist ----------------------------------------------------------------
+# Keep the language breakdown honest: vendored/extracted material, archived v1
+# scripts and generated reports are not part of the authored codebase.
+docs/archive/third-party/*  linguist-vendored
+docs/archive/v1-scripts/*   linguist-vendored
+docs/diagnostics/*          linguist-generated
+docs/archive/HISTORY.md     linguist-documentation
+data/*                      linguist-vendored
+artifacts/*                 linguist-generated

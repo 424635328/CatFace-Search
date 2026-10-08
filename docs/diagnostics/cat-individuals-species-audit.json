@@ -1,0 +1,13 @@
+{
+  "source": "data\\raw\\kaggle_cat_individuals\\extracted\\cat_individuals_dataset",
+  "sample_size": 300,
+  "detector": "OpenCV YuNet (human faces)",
+  "result": {
+    "images": 300,
+    "unreadable": 0,
+    "images_with_human_face": 16,
+    "human_face_rate": 0.0533,
+    "mean_face_confidence": 0.0402
+  },
+  "verdict": "no evidence of human faces"
+}

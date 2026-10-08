@@ -1,0 +1,111 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Cancel superseded runs on the same ref; a stale green tick is worse than none.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install "ruff>=0.6"
+      - name: Ruff lint
+        run: ruff check src tests tools
+      - name: Ruff format check
+        run: ruff format --check src tests tools || true   # advisory until the tree is fully formatted
+
+  test:
+    name: test (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install CPU-only torch
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install the package and test dependencies
+        run: pip install -e ".[cpu,dev]"
+
+      - name: Unit tests
+        # ``-m "not slow"`` keeps the suite free of network and GPU dependencies, so a
+        # failure here is always a real regression rather than an infrastructure blip.
+        run: pytest -q -m "not slow" --cov=catface --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+
+  package:
+    name: build and install check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade build
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Install the built wheel in a clean environment
+        run: |
+          python -m venv /tmp/verify
+          /tmp/verify/bin/pip install dist/*.whl
+          /tmp/verify/bin/catface --version
+          /tmp/verify/bin/python -c "import catface; print('import ok', catface.__version__)"
+
+  configs:
+    name: validate shipped configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: Every config in configs/ must parse
+        # A broken reference config would silently invalidate the benchmark report.
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          from catface.config import PipelineConfig
+
+          failures = []
+          for path in sorted(pathlib.Path("configs").glob("*.yaml")):
+              try:
+                  config = PipelineConfig.from_yaml(path)
+                  print(f"OK   {path}  fingerprint={config.fingerprint()}")
+              except Exception as exc:
+                  failures.append((path, exc))
+                  print(f"FAIL {path}: {exc}")
+          sys.exit(1 if failures else 0)
+          PY

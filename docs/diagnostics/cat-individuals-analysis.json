@@ -1,0 +1,58 @@
+{
+  "root": "data\\raw\\kaggle_cat_individuals\\extracted\\cat_individuals_dataset",
+  "images": 13106,
+  "identities": 509,
+  "images_per_identity": {
+    "min": 6,
+    "median": 20,
+    "mean": 25.75,
+    "p90": 48,
+    "max": 170,
+    "with_ge2": 509,
+    "with_ge5": 509,
+    "singletons": 0
+  },
+  "resolution": {
+    "short_side_min": 480,
+    "short_side_median": 2448.0,
+    "short_side_max": 3456,
+    "median_width": 3264.0,
+    "median_height": 3000.0,
+    "aspect_median": 1.333,
+    "share_short_side_below_128": 0.0,
+    "share_within_10pct_of_square": 0.015
+  },
+  "quality": {
+    "sharpness_median": 41.46,
+    "sharpness_share_below_18": 0.1425,
+    "luminance_median": 116.39,
+    "luminance_share_below_25": 0.0025,
+    "luminance_share_above_235": 0.0,
+    "flagged_unusable": 57
+  },
+  "species": {
+    "observer": "ImageNet-1k ResNet-50 V2 classifier + OpenCV YuNet human-face detector",
+    "top1_is_cat": 328,
+    "top1_is_dog": 4,
+    "top1_is_neither": 68,
+    "cat_probability_mass_median": 0.28654,
+    "dog_probability_mass_median": 0.06285,
+    "share_cat_mass_above_0.5": 0.0875,
+    "share_dog_mass_above_0.5": 0.0025,
+    "share_cat_mass_below_0.05": 0.0625,
+    "images_with_human_face": 37,
+    "human_face_rate": 0.0925,
+    "human_face_confidence_mean": 0.7587,
+    "interpretation": "A low cat mass on a corpus that claims to be cats is the signature of a mislabeled or wrong-population dataset; cross-check against audit_species and audit_content before trusting benchmark numbers."
+  },
+  "duplicates": {
+    "distinct_pixel_contents": 400,
+    "groups_with_duplicates": 0,
+    "images_in_duplicate_groups": 0,
+    "duplicate_rate": 0.0,
+    "examples": []
+  },
+  "warnings": [],
+  "samples_analysed": 400,
+  "samples_total": 13106
+}

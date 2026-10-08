@@ -1,13 +1,108 @@
+# --- Virtual environments -----------------------------------------------------
+# The project's reference environment lives in .venv (created with
+# `python -m venv --system-site-packages`). Never commit it.
+.venv/
+venv/
+env/
+ENV/
+.hypothesis/
+
+# --- Python artefacts --------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- Raw and derived corpora -------------------------------------------------
+# Datasets are large, third-party and licence-restricted: they are re-acquired with
+# `catface acquire` / `tools/parallel_download.py`, never committed.
+#
+# data/ also holds everything derived from them (face crops, manifests, split files,
+# pair images), all regenerable from the acquisition state plus the pipeline code.
+# Keeping them out keeps the repository small enough to clone, and makes the exact
+# bytes a function of the code and the pinned dataset rather than of a stray commit.
+data/
 cat_retrieval/
-embeddings.pkl
 images.tar.gz
+*.tar.gz
+*.zip
+
+# --- Model weights and checkpoints -------------------------------------------
+# `python download_model.py` regenerates the ResNet-50 weights, and every trained
+# checkpoint is reproducible from the config + commit pair recorded in run.json.
+pretrained_models/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.tflite
+*.bin
+
+# --- Vector indexes and embeddings -------------------------------------------
+# Relational to the corpora above; rebuildable with `catface index`.
+*.pkl
+*.pkl.bak
+*.npy
+*.index
+*.faiss
+
+# --- Run artefacts -----------------------------------------------------------
+# Every benchmark and training run writes its own directory. The reports worth
+# keeping are summarised into docs/; raw runs stay out of version control because
+# they embed a machine-specific environment fingerprint.
+artifacts/
+outputs/
+runs/
+wandb/
+lightning_logs/
+mlruns/
+
+# --- Third-party checkouts ---------------------------------------------------
+# The legacy pipeline expected a vendored YOLOv9 clone with its weights.
+yolov9/
+
+# --- Extracted third-party documents -----------------------------------------
+# docs/archive/third-party/ holds text and figures extracted from a copyrighted
+# paper for local reading only. The extraction is reproducible from the original PDF
+# and this repository has a public remote, so the material is not redistributed.
+# Override deliberately if redistribution is permitted for your use.
+docs/archive/third-party/
+
+# --- Archived derived imagery ------------------------------------------------
+# audit contact sheets and reference sample images rendered from third-party
+# corpora. They carry those corpora's licences and are regenerable by re-running the
+# audit tools; the numbers they produced are kept, in the JSON reports beside them.
+docs/archive/2026-10-calfw-audit/reference_samples/
+docs/archive/2026-10-calfw-audit/contact_sheets/
+
+# --- Local tooling and OS noise ----------------------------------------------
 vscode_launcher.exe
 sync.exe
 test.py
-yolov9/yolov9-e.pt
-
-pretrained_models/
-
-yolov9/
-
-embeddings_tta.pkl
+*.log
+*.tmp
+*.part
+*.parts/
+*.assembling
+Thumbs.db
+desktop.ini
+.DS_Store

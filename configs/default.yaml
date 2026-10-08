@@ -1,0 +1,89 @@
+# Default pipeline configuration — the recipe behind the reported benchmark numbers.
+#
+# Every field here is validated by catface.config; an unknown key is a hard error, so
+# a typo cannot silently leave a stage running with a default.
+#
+# Run with:  catface --config configs/default.yaml <command>
+
+run_name: catface-v2
+seed: 1337
+device: auto          # auto | cpu | cuda | cuda:0
+log_level: INFO
+output_dir: artifacts
+
+data:
+  root: data
+  manifest: data/manifests
+  crops_dir: data/faces
+  tile: 256           # stored crop size
+  image_size: 224     # model input size
+  min_face_px: 48     # reject smaller detected faces
+  head_ratio: 0.34    # legacy top-third heuristic (kept for comparison only)
+  pad_ratio: 0.35     # context margin around the head box
+  alignment: none     # none | landmark_similarity
+  blur_var_threshold: 18.0
+  luminance_range: [25, 235]
+  dedupe: true
+  num_workers: 4
+
+model:
+  backbone: dinov2_vitb14   # resnet50 | dinov2_vit{b,l}14 | clip_vitb32 | timm
+  timm_name: null
+  embedding_dim: 512
+  pooling: auto             # auto | cls | gap | gem | cls_gap
+  head: arcface             # identity | linear | arcface | cosface | subcenter_arcface
+  head_margin: 0.35
+  head_scale: 64.0
+  head_num_subcenters: 3
+  image_size: 224
+  freeze_backbone: false
+  l2_normalize: true
+  tta: [identity, hflip]
+
+train:
+  loss: arcface
+  epochs: 25
+  batch_size: 64
+  optimizer: adamw
+  lr: 0.0003
+  backbone_lr_scale: 0.1
+  weight_decay: 0.05
+  warmup_epochs: 2
+  scheduler: cosine
+  label_smoothing: 0.05
+  triplet_weight: 0.3
+  triplet_margin: 0.3
+  amp: true
+  grad_clip: 10.0        # measured gradient norms reach 200-900 on this corpus; a clip of 1.0 discards ~99% of the signal
+  ema_decay: 0.0
+  identities_per_batch: 16
+  samples_per_identity: 4
+  val_every: 1
+  early_stop_patience: 8
+  num_workers: 4
+  seed: 1337
+  output_dir: artifacts/train
+
+eval:
+  protocol: identity_split
+  recall_ks: [1, 5, 10]
+  far_targets: [0.001, 0.01, 0.1]
+  same_identity_excluded: true
+  gallery_ratio: 1.0
+  bootstrap_samples: 500
+  whiten: none              # none | pca | pcaw
+  whiten_dim: 0
+  query_expansion: none     # none | aqe | dba
+
+index:
+  kind: flat_ip             # flat_ip | ivf_pq | hnsw | numpy
+  nlist: 1024
+  nprobe: 32
+  m_pq: 32
+  nbits: 8
+  hnsw_m: 32
+  ef_search: 64
+  output_dir: artifacts/index
+
+extra:
+  notes: "Reference configuration for the v2 upgrade benchmark."

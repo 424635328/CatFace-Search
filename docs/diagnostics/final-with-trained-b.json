@@ -1,0 +1,351 @@
+{
+  "results": [
+    {
+      "name": "baseline-resnet50",
+      "model": {
+        "backbone": "resnet50",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "arcface",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": false,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 2048,
+        "num_classes": 0,
+        "device": "cuda",
+        "spec": {
+          "name": "baseline-resnet50",
+          "backbone": "resnet50",
+          "checkpoint": null,
+          "note": ""
+        }
+      },
+      "postprocess": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "embedding_time_s": 94.975,
+      "images_embedded": 12644,
+      "descriptor_dim": 512,
+      "backbone_dim": 2048,
+      "projected_dim": 512,
+      "notes": [
+        "{\"gallery_dim\": 512, \"query_dim\": 512}"
+      ],
+      "retrieval": {
+        "num_queries": 503.0,
+        "mINP": 0.2881557070944211,
+        "mRR": 0.908857978149616,
+        "mean_first_match_rank": 13.894632206759443,
+        "median_first_match_rank": 1.0,
+        "hit@1": 0.8866799204771372,
+        "hit@5": 0.9363817097415507,
+        "hit@10": 0.94831013916501,
+        "fullRecall@1": 0.051903866425693945,
+        "fullRecall@5": 0.235135940854698,
+        "fullRecall@10": 0.4090412370275672,
+        "mAP@1": 0.8866799204771372,
+        "mAP@5": 0.8128628230616303,
+        "mAP@10": 0.7401004992969871,
+        "hit@1_ci95": [
+          0.8588469184890656,
+          0.9105367793240556
+        ]
+      }
+    },
+    {
+      "name": "zeroshot-dinov2s",
+      "model": {
+        "backbone": "dinov2_vits14",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "arcface",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": false,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 384,
+        "num_classes": 0,
+        "device": "cuda",
+        "spec": {
+          "name": "zeroshot-dinov2s",
+          "backbone": "dinov2_vits14",
+          "checkpoint": null,
+          "note": ""
+        }
+      },
+      "postprocess": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "embedding_time_s": 120.672,
+      "images_embedded": 12644,
+      "descriptor_dim": 512,
+      "backbone_dim": 384,
+      "projected_dim": 512,
+      "notes": [
+        "{\"gallery_dim\": 512, \"query_dim\": 512}"
+      ],
+      "retrieval": {
+        "num_queries": 503.0,
+        "mINP": 0.39449545011567977,
+        "mRR": 0.9515479459172518,
+        "mean_first_match_rank": 3.9343936381709743,
+        "median_first_match_rank": 1.0,
+        "hit@1": 0.9343936381709742,
+        "hit@5": 0.974155069582505,
+        "hit@10": 0.9801192842942346,
+        "fullRecall@1": 0.0555528293319921,
+        "fullRecall@5": 0.25667751859967675,
+        "fullRecall@10": 0.452151475068587,
+        "mAP@1": 0.9343936381709742,
+        "mAP@5": 0.8696951623591782,
+        "mAP@10": 0.81149440469804,
+        "hit@1_ci95": [
+          0.9145129224652088,
+          0.9542743538767395
+        ]
+      }
+    },
+    {
+      "name": "TRAINED-dinov2s",
+      "model": {
+        "backbone": "dinov2_vits14",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "arcface",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": false,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 384,
+        "num_classes": 352,
+        "device": "cuda",
+        "spec": {
+          "name": "TRAINED-dinov2s",
+          "backbone": "dinov2_vits14",
+          "checkpoint": "artifacts\\train\\dinov2s-arcface\\best.pt",
+          "note": ""
+        }
+      },
+      "postprocess": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "embedding_time_s": 121.029,
+      "images_embedded": 12644,
+      "descriptor_dim": 512,
+      "backbone_dim": 384,
+      "projected_dim": 512,
+      "notes": [
+        "{\"gallery_dim\": 512, \"query_dim\": 512}"
+      ],
+      "retrieval": {
+        "num_queries": 503.0,
+        "mINP": 0.7685754607782592,
+        "mRR": 0.976398575718523,
+        "mean_first_match_rank": 1.3916500994035785,
+        "median_first_match_rank": 1.0,
+        "hit@1": 0.9681908548707754,
+        "hit@5": 0.9880715705765407,
+        "hit@10": 0.9900596421471173,
+        "fullRecall@1": 0.05797975663410514,
+        "fullRecall@5": 0.28374822075051565,
+        "fullRecall@10": 0.5239570124048071,
+        "mAP@1": 0.9681908548707754,
+        "mAP@5": 0.942935719019218,
+        "mAP@10": 0.9192542715488374,
+        "hit@1_ci95": [
+          0.952286282306163,
+          0.9821073558648111
+        ]
+      }
+    },
+    {
+      "name": "TRAINED-dinov2b",
+      "model": {
+        "backbone": "dinov2_vitb14",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "arcface",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": true,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 768,
+        "num_classes": 352,
+        "device": "cuda",
+        "spec": {
+          "name": "TRAINED-dinov2b",
+          "backbone": "dinov2_vitb14",
+          "checkpoint": "artifacts\\train\\dinov2b-arcface\\best.pt",
+          "note": ""
+        }
+      },
+      "postprocess": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "embedding_time_s": 271.325,
+      "images_embedded": 12644,
+      "descriptor_dim": 512,
+      "backbone_dim": 768,
+      "projected_dim": 512,
+      "notes": [
+        "{\"gallery_dim\": 512, \"query_dim\": 512}"
+      ],
+      "retrieval": {
+        "num_queries": 503.0,
+        "mINP": 0.721904826385464,
+        "mRR": 0.9700376088965391,
+        "mean_first_match_rank": 1.294234592445328,
+        "median_first_match_rank": 1.0,
+        "hit@1": 0.9582504970178927,
+        "hit@5": 0.9860834990059643,
+        "hit@10": 0.9900596421471173,
+        "fullRecall@1": 0.05710615312369092,
+        "fullRecall@5": 0.28075571806053773,
+        "fullRecall@10": 0.5176413281527137,
+        "mAP@1": 0.9582504970178927,
+        "mAP@5": 0.9335255135851558,
+        "mAP@10": 0.908279011995049,
+        "hit@1_ci95": [
+          0.9403578528827038,
+          0.9751988071570576
+        ]
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "candidate": "zeroshot-dinov2s",
+      "baseline": "baseline-resnet50",
+      "observed_delta": 0.04771371769383703,
+      "ci95": [
+        0.027833001988071593,
+        0.06759443339960242
+      ],
+      "p_a_not_better": 0.0,
+      "samples": 500,
+      "k": 1
+    },
+    {
+      "candidate": "TRAINED-dinov2s",
+      "baseline": "baseline-resnet50",
+      "observed_delta": 0.08151093439363821,
+      "ci95": [
+        0.05964214711729621,
+        0.10442345924453277
+      ],
+      "p_a_not_better": 0.0,
+      "samples": 500,
+      "k": 1
+    },
+    {
+      "candidate": "TRAINED-dinov2b",
+      "baseline": "baseline-resnet50",
+      "observed_delta": 0.07157057654075549,
+      "ci95": [
+        0.04970178926441349,
+        0.09542743538767395
+      ],
+      "p_a_not_better": 0.0,
+      "samples": 500,
+      "k": 1
+    }
+  ],
+  "protocol": {
+    "protocol": "cat_individuals",
+    "policy": "query/gallery, self excluded",
+    "corpus": "Kaggle Cat Individual Images",
+    "crop": "whole image (corpus ships no face boxes)",
+    "training_overlap": "none \u2014 disjoint from OIID training identities",
+    "queries": 503,
+    "gallery": 12141,
+    "identities_in_gallery": 503,
+    "split_sha1": "f78330dcdffd1adda1664f5cecf0c78454d0d454",
+    "tta_views": [
+      "identity",
+      "hflip"
+    ],
+    "image_size": 224,
+    "batch_size": 32,
+    "postprocess": {
+      "whiten": "none",
+      "whiten_dim": 0,
+      "dba": false,
+      "dba_k": 3,
+      "dba_alpha": 3.0,
+      "query_expansion": "none",
+      "aqe_top_k": 3,
+      "aqe_alpha": 3.0,
+      "aqe_reverse_weight": 0.5
+    },
+    "seed": 1337
+  }
+}

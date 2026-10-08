@@ -1,21 +1,32 @@
-torch>=2.0.0
-torchvision>=0.15.0
-torchaudio>=2.0.0
+# Runtime requirements
 
-opencv-python-headless>=4.7.0
-Pillow>=9.5.0
+The authoritative dependency list is **`pyproject.toml`**, which declares the runtime
+requirements plus the `cpu`, `gpu`, `benchmark` and `dev` extras:
 
-# conda install -c pytorch faiss-gpu
-# conda install -c conda-forge faiss-gpu
-faiss-gpu>=1.7.4
+```bash
+pip install -e ".[cpu]"            # CPU-only: pipeline + test suite
+pip install -e ".[gpu]"            # CUDA wheels
+pip install -e ".[benchmark,dev]"  # reproduce the reported benchmark numbers
+```
 
-numpy<2.0
-pandas>=1.5.0
-scipy>=1.10.0
+This file is kept so that older instructions (`pip install -r requirements.txt`) still
+resolve. It installs the minimum needed to run the v1 scripts preserved in
+`docs/archive/2026-10-catface-v1/scripts/`, and it is not used by the v2 pipeline or by CI.
 
-tqdm>=4.64.0
-matplotlib>=3.7.0
-PyYAML>=5.3.1
+## Why the old pins changed
 
-seaborn>=0.11.0
-thop>=0.1.1
+| Old pin | Problem | Now |
+|---|---|---|
+| `numpy<2.0` | Conflicts with current SciPy/OpenCV/Pandas wheels, and version 1.24.6 had to be reinstalled by hand after every dependency change (that was the whole content of the old `cmd.txt`). | Unpinned; the reference environment runs NumPy 2.4.6 with PyTorch 2.6.0. |
+| `faiss-gpu` | Has no Windows build, so the dependency could not be satisfied on the platform this project is developed on, and the v1 code could not import at all without a manual conda workaround. | `faiss-cpu`, with an automatic NumPy brute-force fallback in `catface.index` when FAISS is absent. Results are identical (asserted by test). |
+| `torchaudio` | Unused by the pipeline. | Dropped. |
+| `thop`, `seaborn` | Unused by the pipeline. | Dropped. |
+| `pandas` | Only needed for the pair-parquet readers. | Moved to the `benchmark` extra; `pyarrow` is what the readers actually use. |
+
+torch>=2.0
+torchvision>=0.15
+Pillow>=9.5
+opencv-python-headless>=4.7
+numpy>=1.23
+tqdm>=4.64
+PyYAML>=6.0

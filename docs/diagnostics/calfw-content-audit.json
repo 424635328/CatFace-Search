@@ -1,0 +1,39 @@
+{
+  "csv": "data/calfw/pairs.csv",
+  "images_audited": 600,
+  "cat_class_indices": {
+    "281": "tabby",
+    "282": "tiger_cat",
+    "283": "Persian_cat",
+    "284": "Siamese_cat",
+    "285": "Egyptian_cat"
+  },
+  "overall": {
+    "count": 600,
+    "image_is_top1_cat": 0,
+    "image_is_top1_dog": 0,
+    "image_is_top1_neither": 600,
+    "top1_probability_mean": 0.1316220130212605
+  },
+  "top1_histogram": {
+    "906:other": 244,
+    "678:other": 155,
+    "683:other": 80,
+    "699:other": 24,
+    "400:other": 15,
+    "903:other": 13,
+    "652:other": 12,
+    "715:other": 7,
+    "439:other": 4,
+    "722:other": 4,
+    "551:other": 4,
+    "860:other": 3
+  },
+  "cat_probability_mass": {
+    "mean": 0.0026654011695063672,
+    "median": 0.0024848750326782465,
+    "share_with_mass_above_0.5": 0.0,
+    "share_with_mass_below_0.05": 1.0
+  },
+  "verdict_hint": "if share_with_mass_below_0.05 is high, the images are mostly NOT cat faces, which invalidates any cat-face benchmark built on them"
+}

@@ -1,0 +1,129 @@
+[build-system]
+# setuptools is used rather than hatchling so the project builds offline, on machines
+# where the build backend cannot be fetched from PyPI.
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catface-search"
+version = "2.0.0"
+description = "Cat-face identity retrieval: face cropping, metric-learning embeddings, and a benchmarked vector index."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "CatFace Search contributors" }]
+keywords = ["cat", "face-recognition", "image-retrieval", "metric-learning", "arcface", "faiss"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Core runtime. Heavier, hardware-specific packages (torch, faiss) are extras so the
+# package can be installed and unit-tested on a CPU-only machine.
+dependencies = [
+  "numpy>=1.23",
+  "pillow>=9.5",
+  "pyyaml>=6.0",
+  "tqdm>=4.64",
+]
+
+[project.optional-dependencies]
+# CPU-only deep-learning stack, sufficient to run the full pipeline and the test suite.
+cpu = [
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "opencv-python-headless>=4.7",
+  "faiss-cpu>=1.8",
+  "scikit-learn>=1.3",
+  "timm>=1.0",
+]
+# GPU stack (CUDA 12.4 wheels in this project's reference environment).
+gpu = [
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "opencv-python-headless>=4.7",
+  "faiss-cpu>=1.8",
+  "scikit-learn>=1.3",
+  "timm>=1.0",
+]
+# Everything needed to reproduce the reported benchmark numbers.
+benchmark = [
+  "catface-search[cpu]",
+  "pyarrow>=15.0",
+  "pandas>=2.0",
+  "matplotlib>=3.7",
+  "scipy>=1.10",
+]
+dev = [
+  "catface-search[benchmark]",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6",
+  "mypy>=1.10",
+]
+
+[project.scripts]
+catface = "catface.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/424635328/CatFace-Search"
+Issues = "https://github.com/424635328/CatFace-Search/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["catface*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+  "slow: exercises real model weights or a GPU (deselect with '-m \"not slow\"')",
+  "gpu: requires a CUDA device",
+]
+
+[tool.coverage.run]
+source = ["src/catface"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RET", "ARG", "PTH", "RUF"]
+ignore = [
+  "E501",    # line length is handled by the formatter
+  "RUF001",  # ambiguous unicode in docstrings (Chinese text is intentional)
+  "RUF002",
+  "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "SLF001"]
+"tools/*" = ["ARG"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_configs = true
+ignore_missing_imports = true
+files = ["src/catface"]

@@ -1,0 +1,43 @@
+// findings from the data-acquisition phase. Kept so the reasoning is auditable:
+// why Oxford-IIIT Pet is NOT used for identity training, contrary to the project's
+// original README claim.
+{
+  "oxford_iiit_pet": {
+    "verified_on": "2026-10-05",
+    "source": "https://www.robots.ox.ac.uk/~vgg/data/pets/",
+    "artifacts": {
+      "images.tar.gz": { "expected_bytes": 791918971, "verified_bytes": 791918971, "images": 7390 },
+      "annotations.tar.gz": { "expected_bytes": 19173078, "verified_bytes": 19173078, "xml_files": 3686 }
+    },
+    "label_structure": {
+      "list_txt_rows": 7349,
+      "rows_with_xml": 3671,
+      "xml_object_name_cat": 1181,
+      "xml_object_name_dog": 2490,
+      "cat_filename_prefix_distinct_values": 12,
+      "cat_images_per_prefix": "90-100 each",
+      "conclusion": "The file-name prefix is the BREED (Abyssinian, Bengal, ...), and the numeric suffix is a photo index. list.txt is documented as 'CLASS-ID' 1..37. The dataset therefore provides breed-level labels only."
+    },
+    "impact": "Oxford-IIIT Pet CANNOT train or evaluate individual cat identification. Using it would mean a 12-class breed classifier dressed up as identity retrieval. Excluded from the identity benchmark; retained only as an optional breed/robustness control.",
+    "correction_note": "The project's original README implied identity-level capability from this corpus. That claim is not supported by the data."
+  },
+  "gap": "An individual-identity cat corpus is required for metric learning.",
+  "selected": {
+    "kaggle_cat_individuals": {
+      "ref": "timost1234/cat-individuals",
+      "license": "CC BY 4.0",
+      "images": 13536,
+      "individual_cats": 518,
+      "layout": "cat_individuals_dataset/<4-digit id>/<id>_<index>.JPG",
+      "role": "primary identity corpus: metric-learning training AND open-set re-identification benchmark",
+      "why": "Real uncontrolled cat photographs with many images per individual; the only freely available corpus that supports genuine individual-level supervision."
+    },
+    "calfw_pairs": {
+      "ref": "huggingface:cat-claws/face-verification (calfw split)",
+      "pairs": 6000,
+      "role": "independent verification benchmark (ROC-AUC, EER, TAR@FAR at production-scale false-accept rates)",
+      "why": "Label-free of identity grouping, so it cannot leak into training; provides threshold-independent evidence."
+    },
+    "petface_note": "PetFace (ECCV 2024) would be the ideal corpus (250k+ IDs) but distribution requires an institutional-email Google Form; not obtainable in this environment."
+  }
+}

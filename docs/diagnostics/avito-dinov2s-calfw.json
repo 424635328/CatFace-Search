@@ -1,0 +1,29 @@
+{
+  "model": "AvitoTech/DINO-v2-small-for-animal-identification",
+  "protocol": {
+    "pairs": 2000,
+    "positives": 1100
+  },
+  "device": "cuda",
+  "load_seconds": 27.21,
+  "embed_seconds": 23.87,
+  "descriptor_dim": 384,
+  "verification": {
+    "num_pairs": 2000.0,
+    "num_positives": 1100.0,
+    "roc_auc": 0.5613363636363636,
+    "eer": 0.4666666666666667,
+    "eer_threshold": 0.6351955731709799,
+    "accuracy_at_eer": 0.533,
+    "mean_positive_score": 0.607823044443503,
+    "mean_negative_score": 0.5698032464810078,
+    "score_separation": 0.038019797962495216,
+    "TAR@FAR=0.001": 0.011818181818181818,
+    "TAR@FAR=0.01": 0.04363636363636364,
+    "TAR@FAR=0.1": 0.19636363636363635
+  },
+  "sanity": {
+    "exact_pair_is_argmax_rate": 0.0025,
+    "note": "the diagonal should dominate if scores and labels are aligned"
+  }
+}

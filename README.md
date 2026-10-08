@@ -1,204 +1,198 @@
-# CatFace Search: 猫脸视觉相似性搜索引擎
-
-## 效果展示
+# CatFace Search — 猫脸身份检索系统
 
 <p align="center">
-  <img src="docs/bd2030c4-9fd0-4aac-baba-d775c89ac6a7.png" width="80%" alt="效果展示1"/>
-  <br/>
-  <img src="docs/cb94c72e-e5c7-4efb-b708-8f915f452c9e.png" width="80%" alt="效果展示2"/>
+  <img src="docs/images/search-result-01.png" width="80%" alt="效果展示"/>
 </p>
 
-## 📜 项目简介
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
-![Framework](https://img.shields.io/badge/Framework-PyTorch-orange.svg)
-![Tool](https://img.shields.io/badge/Tool-YOLOv9-red.svg)
-![Tool](https://img.shields.io/badge/Tool-FAISS-green.svg)
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)
+![Framework](https://img.shields.io/badge/PyTorch-2.x-orange.svg)
+![CI](https://github.com/424635328/CatFace-Search/actions/workflows/ci.yml/badge.svg)
 
-这是一个基于深度学习的“以图搜图”引擎，专门用于在大型数据集中快速查找视觉上相似的猫脸。项目核心特点在于其**可扩展性**：当有新的猫咪照片加入时，**无需重新训练任何模型**，只需更新索引即可。
+一个"以图搜猫"引擎：给一张猫脸照片，在库里找出**同一只猫**的其他照片。
 
-## 🧠 核心原理：从“识别”到“测量相似度”
-
-传统的身份识别系统通常需要“监督学习”，即用大量标注好身份（例如，“猫 A”、“猫 B”）的数据去训练一个分类模型。这种方法的缺点是每当有新猫加入，就需要重新训练整个模型。
-
-本项目巧妙地绕开了这个问题，其核心思想是**将“识别问题”转化为“在高维空间中测量相似度”的数学问题**：
-
-1.  **利用“视觉专家”而非“训练”**：我们使用了一个在 ImageNet 上预训练好的`ResNet-50`模型。这个模型已学会理解图像的通用视觉特征，就像一个通用的“视觉翻译官”。
-
-2.  **将图片“翻译”成“面部指纹”**：我们利用这个“翻译官”将每一张猫脸图片，转换成一个 2048 维的数字向量，即**特征向量 (Embedding)**。这个向量可以被看作是这张脸独一无二的“面部指纹”。
-
-3.  **在“特征空间”中寻找最近邻**：这个 2048 维的向量可以被想象成一个点在拥有 2048 个坐标轴的超高维“特征空间”中的位置。在这个空间中：
-
-    - **视觉上相似的图片，其对应的点会非常接近。**
-    - **视觉上差异大的图片，其对应的点会相距遥远。**
-
-4.  **“识别”效果的涌现**：系统本身并不知道“身份”的概念。但基于一个强假设——**“同一只猫的不同照片，其视觉特征的相似度远高于它和其它猫的相似度”**——当我们用一张猫的照片去搜索时，系统通过`FAISS`库在这个高维空间中快速找到距离最近的点。这些“最近邻”在绝大多数情况下都恰好是同一只猫的其他照片，从而达到了“识别”的效果。
-
-## ✨ 项目特点
-
-- **🚀 自动化数据预处理**: 使用先进的 **YOLOv9** 模型自动从原始图片中检测并裁剪出猫脸。
-- **🧠 鲁棒的深度特征**: 利用 **测试时增强 (TTA)** 技术，为每张图片及其翻转版本生成特征并取平均，显著提升了特征向量对姿态变化的鲁棒性。
-- **⚡️ 闪电般快速的搜索**: 集成 Facebook AI 的 **FAISS** 库，为特征向量建立高效索引，实现毫秒级的相似性搜索。
-- **⚡️ 高性能批处理**: 所有特征生成和更新脚本都经过优化，采用**批处理**方式，能高效处理大规模数据集。
-- **📈 强大的可扩展性**: 无需重新训练，即可轻松向数据库中添加新的猫脸图片，系统能够智能地进行增量更新。
-- **🛠️ 易于维护**: 提供独立的、经过优化的工具脚本用于数据库的创建、更新和清理。
+核心设计目标是**可扩展性**——加入新猫不需要重新训练，只需增量更新索引。
 
 ---
 
-## 📂 项目结构
+## 📊 实测效果
 
-```
-cat-face-search/
-├── yolov9/                      # YOLOv9 官方仓库代码
-│   ├── yolov9-e.pt              # YOLOv9 预训练权重 (需自行下载)
-│   └── ...
-├── pretrained_models/           # 存放本地化的预训练模型
-│   └── resnet50-weights.pth     # ResNet-50 权重 (由脚本生成)
-├── cat_retrieval/               # 数据集目录
-    ├── raw_images/                  # 存放原始猫咪图片
-    ├── cropped_faces/               # 存放由YOLOv9裁剪出的猫脸
-├── query/                       # 存放用于搜索的查询图片
-│
-├── download_model.py            # [新增] 脚本：下载ResNet-50模型到本地
-├── 01_crop_faces.py     # 脚本：高效、不重复地裁剪猫脸
-├── 02_generate_embeddings.py  # 脚本：高性能地从头创建特征数据库
-├── 03_search_similar.py       # 脚本：执行一次高性能的相似性搜索
-├── 04_add_new_cat.py      # 脚本：高性能地增量更新数据库
-├── clean_database.py    # 脚本：高效地清理数据库中的无效记录
-│
-├── embeddings_tta.pkl           # 生成的特征数据库文件
-├── LICENSE                      # MIT 许可证
-└── README.md                    # 本说明文件
-```
+在 **503 个未参与训练**的猫个体、12 141 张画廊图的检索协议上（完整报告见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md)）：
+
+| 配置 | 参数量 | hit@1 | hit@5 | mINP | 嵌入耗时 |
+|---|---|---|---|---|---|
+| 旧版骨干 ResNet-50（ImageNet 预训练） | 25.6 M | 0.8867 | 0.9364 | 0.2882 | 95 s |
+| DINOv2-S 零样本 | 21 M | 0.9344 | 0.9742 | 0.3945 | 121 s |
+| DINOv2-B 零样本 | 86 M | 0.9523 | 0.9801 | 0.4352 | 326 s |
+| **DINOv2-S + ArcFace 微调** | **21 M** | **0.9682** | **0.9881** | **0.7686** | **121 s** |
+| DINOv2-B + ArcFace 微调 | 86 M | 0.9583 | 0.9861 | 0.7219 | 271 s |
+
+配对 bootstrap 显著性检验：微调 DINOv2-S 相对 ResNet-50 **+8.15 个点**（95% CI [+5.96, +10.44]，p<0.001）。嵌入耗时是 12 644 张图的总时长。
+
+三点值得注意：
+
+1. **21 M 的微调 DINOv2-S 比 4 倍大的 86 M 微调 DINOv2-B 还高 1.0 个点**，且嵌入快 2.2 倍、训练少 13 分钟。收益来自让训练目标与检索任务对齐（自监督优化"这是什么"，ArcFace 优化"这是哪一只"），**不是**来自模型容量——在 352 个身份的训练集上，大骨干的额外容量没被用上。
+2. **mINP 提升 2.7 倍**，说明正确的匹配不只是"出现在列表里"，而是排得足够靠前。
+3. **代价已量化**：身份训练会压缩通用视觉组织能力——物种可分间隔下降 64%，品种 1-NN 从 0.9506 降到 0.7881。详见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md) §5。
 
 ---
 
-## 🚀 安装与配置
+## ⚠️ v2 重要更正
 
-推荐使用 `Anaconda` 或 `Miniconda` 创建独立的虚拟环境。
+本次升级修掉了旧版中的两处**实质性错误**，它们让项目此前的结论不成立：
 
-### 1. 克隆仓库并设置环境
+| 问题 | 旧版 | v2 |
+|---|---|---|
+| **Oxford-IIIT Pet 被当作身份数据集** | README 声称可从中获得身份信息 | 已核实：其文件名前缀是**品种**（12 个），`list.txt` 是 `CLASS-ID 1..37`。**该数据集只有品种标注，没有个体标注**，无法用于个体识别训练/评测。详见 [`docs/data-findings.json`](docs/data-findings.json) |
+| **CALFW 被当作猫脸验证基准** | 用作验证数据集 | 已核实：该 split 的 6000 张图**100% 是人脸**（YuNet 人脸检测器 300/300 命中，均值置信度 0.92）。详见 [`docs/diagnostics/CALFW-IS-NOT-CAT-FACES.md`](docs/diagnostics/CALFW-IS-NOT-CAT-FACES.md) |
 
-```bash
-# 1. 克隆本项目和YOLOv9仓库
-git clone https://github.com/424635328/cat-face-search.git
-cd cat-face-search
-git clone https://github.com/WongKinYiu/yolov9.git
-
-# 2. 创建并激活Conda虚拟环境
-conda create --name cat-vision python=3.10 -y
-conda activate cat-vision
-
-# 3. 安装PyTorch
-# 访问 PyTorch官网 (https://pytorch.org/get-started/locally/) 获取适合你系统的命令
-# 例如，使用CUDA 11.8:
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
-
-# 4. 安装其他核心依赖
-# 重要：由于兼容性问题，我们需手动指定NumPy版本<2.0
-pip install "numpy<2.0"
-pip install opencv-python tqdm matplotlib pillow
-
-# 5. 安装FAISS
-# 如果你有NVIDIA GPU (推荐)
-conda install -c pytorch faiss-gpu
-# 如果你只有CPU
-# conda install -c pytorch faiss-cpu
-
-# 6. 安装YOLOv9的依赖
-cd yolov9
-pip install -r requirements.txt
-cd ..
-```
-
-### 2. 下载预训练模型
-
-本项目依赖两个预训练模型，请按以下步骤下载：
-
-1.  **下载 YOLOv9 模型**:
-    从 [YOLOv9 Release 页面](https://github.com/WongKinYiu/yolov9?tab=readme-ov-file#evaluation) 下载权重文件（如 `yolov9-e.pt`），并将其放入 `yolov9/` 文件夹内。
-
-2.  **下载并本地化 ResNet-50 模型**:
-    运行 `download_model.py` 脚本，它会自动下载 ResNet-50 的权重并保存到 `pretrained_models/` 文件夹中，以供离线使用。
-    ```bash
-    python download_model.py
-    ```
+两处都保留了完整审计证据链。**这些数据集的名称与 dataset card 不构成其内容的证据。**
 
 ---
 
-## ⚙️ 使用方法
+## 🧠 原理
 
-### 第 1 步: 准备原始图片
+不训练分类器，而是把"识别"转化为"在高维空间测距离"：
 
-将你收集的所有猫咪图片放入 `raw_images/` 文件夹。
+1. **用度量学习而非分类** — ImageNet 分类器优化的是"类间线性可分"，对**类内方差**没有约束。同一只猫的不同照片在该空间里可以随意散开。身份检索需要的是"类内紧凑"，这是一个不同的目标函数。
+2. **把脸变成指纹** — 骨干网络把每张猫脸映射为单位范数向量（embedding）。
+3. **在指纹空间找最近邻** — FAISS 索引毫秒级返回最相似的脸。
+4. **身份从几何中涌现** — 系统不知道"身份"概念，但同一只猫的向量天然聚在一起。
 
-### 第 2 步: 裁剪所有猫脸
+正因为不需要训练分类器，**加入新猫只需更新索引，无需重新训练**。
 
-运行优化后的 `01_crop_faces.py` 脚本。它会跳过已存在的图片，只处理新图片。
+---
 
-```bash
-python 01_crop_faces.py
+## 🏗️ 架构
+
 ```
+cat_retrieval/                     data/（原始数据 + 各类派生数据）
+├─ raw_images/   原始猫图           ├─ oxford_annotations/   OIID 标注（含头部框）
+└─ cropped_faces/ 裁剪后的猫脸      ├─ raw/                  下载的原始语料
+                                    ├─ faces/                标准化后的 256×256 脸块
+                                    └─ manifests/            清单 + 身份隔离划分
 
-### 第 3 步: 建立初始特征数据库
-
-运行高性能的 `02_generate_embeddings.py` 脚本，创建包含 TTA 特征的数据库。
-
-```bash
-python 02_generate_embeddings.py
-```
-
-### 第 4 步: 执行相似性搜索
-
-1.  将一张你想要搜索的猫脸图片放入 `query/` 文件夹。
-2.  修改 `03_search_similar.py` 脚本中的 `QUERY_IMAGE_PATH` 变量。
-3.  运行脚本，结果将以图片形式展示。
-
-```bash
-python 03_search_simila.py
+src/catface/                       企业级包结构
+├─ config.py          类型化配置（未知键报错、指纹可追溯）
+├─ errors.py          异常层级
+├─ logging_utils.py   结构化日志 + 环境指纹
+├─ data/
+│  ├─ sources.py      数据集目录、完整性校验下载、安全解压
+│  ├─ annotation.py   标注解析（OIID XML、pair parquet）
+│  ├─ cropping.py     裁剪几何 + 质量信号
+│  ├─ manifest.py     清单 + **按身份**划分 + 泄漏检测
+│  └─ prepare.py      各语料 → 脸块清单
+├─ models/
+│  ├─ backbone.py     骨干注册表（可扩展）
+│  ├─ pooling.py      池化（auto/gap/gem/cls/cls_gap）
+│  ├─ heads.py        ArcFace / CosFace / SubCenter / Triplet
+│  └─ embedder.py     统一推理入口（训练与推理不漂移）
+├─ train/loop.py      PK 采样 + 分层学习率 + EMA + 按检索指标选模型
+├─ eval/
+│  ├─ metrics.py      R@k / fullRecall@k / mAP / mINP / mRR / AUC / EER / TAR@FAR
+│  ├─ postprocess.py  PCA白化 / DBA / αQE（免训练提点）
+│  ├─ protocols.py    查询/画廊协议 + 身份泄漏断言
+│  └─ benchmark.py    统一评测循环 + 配对 bootstrap 显著性检验
+├─ index/faiss_index.py  FAISS 索引（带 NumPy 回退，两者结果一致）
+└─ cli.py             catface doctor/acquire/prepare/train/benchmark/verify/index
 ```
 
 ---
 
-## 🔄 如何添加新的猫咪图片 (工作流)
+## 🚀 快速开始
 
-当你有新的猫咪照片时，请遵循以下**增量更新**流程：
+```bash
+# 1. 环境（PyTorch + CUDA 请按官方指引安装）
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[benchmark,dev]"          # 或 ".[cpu]" 用于纯 CPU
 
-1.  **添加新图片**: 将新的原始照片放入 `raw_images/` 文件夹。
-2.  **裁剪新面孔**: 再次运行裁剪脚本，它只会处理新加入的图片。
-    ```bash
-    python 01_crop_faces_optimized.py
-    ```
-3.  **智能更新数据库**: 运行 `04_add_new_cat.py` 脚本。它会自动为新裁剪出的猫脸生成 TTA 特征，并追加到数据库中。
-    ```bash
-    python 04_add_new_cat.py
-    ```
-    现在，你的搜索引擎就已经包含了这些新猫的信息！
+# 2. 自检：设备、库版本、数据就绪度（不做任何修改）
+catface doctor --config configs/default.yaml
+
+# 3. 取数据（自动校验大小，支持断点续传 + 多流并行）
+catface acquire --datasets oxford_iiit_pet
+
+# 4. 裁剪猫脸 + 建立清单 + **按身份**划分
+catface prepare --source oiid_cat
+
+# 5. 训练度量学习嵌入
+catface train --config configs/default.yaml --backbone dinov2_vitb14 --epochs 25
+
+# 6. 基准对照（基线 vs 升级，含配对显著性检验）
+python -m tools.run_benchmark_suite --protocol cat_individuals
+
+# 7. 建索引 + 查询
+catface index --checkpoint artifacts/train/best.pt \
+              --manifest data/manifests/cat_individuals_manifest.jsonl \
+              --query query/my_cat.jpg --top-k 10
+```
+
+---
+
+## 📊 评测报告
+
+每次 benchmark 产出 `artifacts/benchmarks/<run>/`：
+
+- `summary.md` — 可直接贴进评审的对照表
+- `metrics.json` — 完整指标 + **环境指纹**（commit、库版本、GPU）+ 协议描述 + split 内容哈希
+
+报告包含：
+
+| 指标族 | 指标 | 回答的问题 |
+|---|---|---|
+| 检索 | `R@k` | 前 k 张里有没有同一只猫？ |
+| 检索 | `fullRecall@k` | 这只猫的所有照片，找回了多少比例？ |
+| 检索 | `mAP@k`、`mINP`、`mRR` | 排序质量（mINP 在 mAP 饱和后仍能区分模型） |
+| 验证 | `ROC-AUC`、`EER` | 阈值无关的整体判别质量 |
+| 验证 | `TAR@FAR` | **在 1% 误接受预算下，漏掉了多少真匹配？** |
+| 统计 | 配对 bootstrap | 提升是真的，还是抽样噪声？ |
+
+> `R@k` 与 `fullRecall@k` 是两个不同的问题（前者是命中率 CMC，后者是召回比例），混淆二者是检索评测最常见的夸大来源，因此分开报告。
+> 配对 bootstrap 用**相同查询**重采样，抵消共同难度，能检出单向重采样检不出的差异。
 
 ---
 
 ## 🛠️ 维护工具
 
-如果数据库中存在指向已删除文件的无效记录，运行 `clean_database.py` 进行清理。
-
 ```bash
-python clean_database.py
+pytest -q -m "not slow"          # 单元测试（无网络、无 GPU 依赖）
+ruff check src tests tools        # 静态检查
+catface doctor                    # 环境与数据就绪度
+python -m tools.audit_species     # 审计语料是否含人脸（新数据源必过）
+python -m tools.audit_content     # 审计语料内容类别
+python -m tools.parallel_download # 多流并行下载（代理限速时提速约 5 倍）
+python -m tools.analyze_corpus    # 语料统计（规模/分辨率/质量/物种构成）
+python -m tools.analyze_species_recognition  # 全物种识别统计（跨物种可分性）
+python -m tools.run_benchmark_suite  # 一键跑完整基准并出报告
 ```
 
-## 💡 未来与当前工作
+## ⏸️ 训练可随时暂停与续训
 
-- **当前正在进行**:
+每个 epoch 结束都会原子化检查点，中断不丢进度、续训轨迹与不中断时一致（状态含优化器动量、调度器位置、采样器 epoch、RNG）：
 
-  - **微调 YOLOv9 猫脸检测器**: 当前的 YOLOv9 模型是用于检测猫全身的，裁剪出的区域可能包含身体和背景，从而“污染”特征。我们正在使用专门的猫脸数据集来微调 YOLOv9，使其能够**精准地只裁剪出猫脸**。这将是提升系统准确率的关键一步。
+```bash
+# 带时间预算运行，到点自动在 epoch 边界干净停下
+python -m tools.train_embedder --backbone dinov2_vits14 --epochs 20 \
+  --output artifacts/train/dinov2s-arcface --max-seconds 3600
 
-- **未来可改进的方向**:
-  - **Web 界面**: 使用 Flask 或 Gradio 为项目创建一个用户友好的 Web 界面。
-  - **微调特征提取器**: 在获得精准的猫脸数据后，可以使用度量学习（如 Triplet Loss）来微调 ResNet-50 模型，使其生成的特征向量更能区分不同的猫咪个体。
-  - **数据库后端**: 对于超大规模数据集，可以考虑将特征向量存储在专门的向量数据库中（如 Milvus, Weaviate）。
+# 接着上次继续（同一条命令加 --resume）
+python -m tools.train_embedder --backbone dinov2_vits14 --epochs 20 \
+  --output artifacts/train/dinov2s-arcface --resume
+```
+
+| 暂停方式 | 触发 |
+|---|---|
+| 时间预算 | `--max-seconds <秒>` |
+| 信号 | `Ctrl-C` / SIGTERM（在 epoch 边界停，不再中途硬杀） |
+| 外部请求 | 在输出目录放 `PAUSE` 文件 |
+| 续训 | `--resume` |
+
+也可用 `tools/train_resumable.ps1` 自动循环续训。暂停**不会**被标记成"早停收敛"（用独立的 `pause_reason` 区分），且暂停时保留**最新**权重而非最佳权重——否则续训轨迹会与不中断时不同。
 
 ---
 
 ## 📄 许可证
 
-本项目采用 [MIT License](LICENSE) 授权。
+MIT，见 [LICENSE](LICENSE)。
+
+使用的数据集各有其许可，详见 `tools/` 与 `catface/data/sources.py` 中的元数据。**Oxford-IIIT Pet 与 CALFW 仅供研究使用**，图像版权归原始来源所有。

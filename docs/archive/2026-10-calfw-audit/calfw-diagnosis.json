@@ -1,0 +1,84 @@
+{
+  "labels": {
+    "rows": 6000,
+    "class_counts": {
+      "0": 3000,
+      "1": 3000
+    },
+    "positive_ratio": 0.5,
+    "positive_indices_head": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "negative_indices_head": [
+      300,
+      301,
+      302,
+      303,
+      304
+    ],
+    "first_label_change_at": 300,
+    "looks_sorted": false
+  },
+  "images": {
+    "images_inspected": 300,
+    "width_range": [
+      112,
+      112
+    ],
+    "height_range": [
+      112,
+      112
+    ],
+    "all_square": true,
+    "modes": {
+      "RGB": 300
+    },
+    "unique_images": 300,
+    "duplicate_image_bytes": 0,
+    "duplicate_rate": 0.0
+  },
+  "export": {
+    "csv_rows": 6000,
+    "csv_positive_ratio": 0.5,
+    "matches_parquet_counts": true
+  },
+  "baseline_raw_pixels": {
+    "num_pairs": 6000.0,
+    "num_positives": 3000.0,
+    "roc_auc": 0.5508376666666667,
+    "eer": 0.4653333333333334,
+    "eer_threshold": 0.8563031554222107,
+    "accuracy_at_eer": 0.5346666666666666,
+    "mean_positive_score": 0.849428945740064,
+    "mean_negative_score": 0.8384883629779021,
+    "score_separation": 0.010940582762161921,
+    "TAR@FAR=0.001": 0.004,
+    "TAR@FAR=0.01": 0.03,
+    "TAR@FAR=0.1": 0.147
+  },
+  "baseline_colour_histogram": {
+    "num_pairs": 6000.0,
+    "num_positives": 3000.0,
+    "roc_auc": 0.5287782222222223,
+    "eer": 0.47816666666666663,
+    "eer_threshold": 0.66845703125,
+    "accuracy_at_eer": 0.522,
+    "mean_positive_score": 0.6617477222513407,
+    "mean_negative_score": 0.6494746098021666,
+    "score_separation": 0.012273112449174062,
+    "TAR@FAR=0.001": 0.0013333333333333333,
+    "TAR@FAR=0.01": 0.011333333333333334,
+    "TAR@FAR=0.1": 0.11133333333333334
+  },
+  "score_distribution": {
+    "positive_mean": 0.8494288921356201,
+    "negative_mean": 0.8384882807731628,
+    "positive_std": 0.06793169677257538,
+    "negative_std": 0.06771034747362137
+  },
+  "near_identical_positive_rate": 0.0
+}

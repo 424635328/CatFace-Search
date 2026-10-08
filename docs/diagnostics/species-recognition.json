@@ -1,0 +1,157 @@
+{
+  "corpus": {
+    "name": "Oxford-IIIT Pet (all 37 breeds, cats and dogs)",
+    "images": 1600,
+    "species_counts": {
+      "cat": 800,
+      "dog": 800
+    },
+    "breeds": 8,
+    "species_label_rule": "file name capitalised => cat (the dataset's documented rule)",
+    "note": "identity here is the breed, which is what this corpus labels"
+  },
+  "models": {
+    "trained-dinov2s": {
+      "species": {
+        "descriptor_dim": 512,
+        "labelling": "species",
+        "1nn_accuracy": 0.9694,
+        "num_items": 1600,
+        "num_classes": 2,
+        "chance_level": 0.5,
+        "distance_structure": {
+          "mean_similarity_inter_species": 0.0998,
+          "mean_similarity_intra_species": 0.1986,
+          "separation_gap": 0.0989,
+          "ratio_intra_over_inter": 1.9905,
+          "descriptor_variance_mean": 0.001661,
+          "descriptor_std_median": 0.040102,
+          "interpretation": "separation_gap near 0 means the descriptor does not distinguish species at all; descriptor_variance_mean near 0 indicates a collapsed descriptor"
+        },
+        "confusion": {
+          "cat": {
+            "cat": 759,
+            "dog": 41
+          },
+          "dog": {
+            "cat": 8,
+            "dog": 792
+          }
+        },
+        "linear_probe": {
+          "accuracy_mean": 0.9825,
+          "accuracy_std": 0.0064,
+          "folds": 5,
+          "chance_level": 0.5
+        }
+      },
+      "breed": {
+        "descriptor_dim": 512,
+        "labelling": "breed",
+        "1nn_accuracy": 0.7881,
+        "num_items": 1600,
+        "num_classes": 8,
+        "chance_level": 0.125
+      },
+      "seconds": 137.2,
+      "embedder": {
+        "backbone": "dinov2_vits14",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "arcface",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": false,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 384,
+        "num_classes": 352,
+        "device": "cuda"
+      }
+    },
+    "untrained-head-dinov2_vits14": {
+      "species": {
+        "descriptor_dim": 512,
+        "labelling": "species",
+        "1nn_accuracy": 1.0,
+        "num_items": 1600,
+        "num_classes": 2,
+        "chance_level": 0.5,
+        "distance_structure": {
+          "mean_similarity_inter_species": 0.0614,
+          "mean_similarity_intra_species": 0.3357,
+          "separation_gap": 0.2743,
+          "ratio_intra_over_inter": 5.4691,
+          "descriptor_variance_mean": 0.001565,
+          "descriptor_std_median": 0.037962,
+          "interpretation": "separation_gap near 0 means the descriptor does not distinguish species at all; descriptor_variance_mean near 0 indicates a collapsed descriptor"
+        },
+        "confusion": {
+          "cat": {
+            "cat": 800,
+            "dog": 0
+          },
+          "dog": {
+            "cat": 0,
+            "dog": 800
+          }
+        },
+        "linear_probe": {
+          "accuracy_mean": 0.9994,
+          "accuracy_std": 0.0013,
+          "folds": 5,
+          "chance_level": 0.5
+        }
+      },
+      "breed": {
+        "descriptor_dim": 512,
+        "labelling": "breed",
+        "1nn_accuracy": 0.9506,
+        "num_items": 1600,
+        "num_classes": 8,
+        "chance_level": 0.125
+      },
+      "seconds": 156.7,
+      "embedder": {
+        "backbone": "dinov2_vits14",
+        "pretrained": null,
+        "timm_name": null,
+        "embedding_dim": 512,
+        "pooling": "auto",
+        "head": "linear",
+        "head_margin": 0.35,
+        "head_scale": 64.0,
+        "head_num_subcenters": 3,
+        "image_size": 224,
+        "l2_normalize": true,
+        "tta": [
+          "identity",
+          "hflip"
+        ],
+        "gradient_checkpointing": false,
+        "checkpoint_version": 2,
+        "backbone_feature_dim": 384,
+        "num_classes": 0,
+        "device": "cuda"
+      }
+    }
+  },
+  "verdict": {
+    "trained-dinov2s": {
+      "species_1nn": 0.9694,
+      "species_chance": 0.5,
+      "separation_gap": 0.0989,
+      "collapsed": false,
+      "species_1nn_vs_untrained_head": -0.0306,
+      "verdict": "training REDUCED cross-species separation — the identity objective partly overwrote the backbone's general organisation"
+    }
+  }
+}

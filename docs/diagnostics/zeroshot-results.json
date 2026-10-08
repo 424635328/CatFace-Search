@@ -1,0 +1,206 @@
+[
+  {
+    "name": "baseline-resnet50",
+    "model": {
+      "backbone": "resnet50",
+      "pretrained": null,
+      "timm_name": null,
+      "embedding_dim": 512,
+      "pooling": "auto",
+      "head": "arcface",
+      "head_margin": 0.35,
+      "head_scale": 64.0,
+      "head_num_subcenters": 3,
+      "image_size": 224,
+      "l2_normalize": true,
+      "tta": [
+        "identity",
+        "hflip"
+      ],
+      "gradient_checkpointing": false,
+      "checkpoint_version": 2,
+      "backbone_feature_dim": 2048,
+      "num_classes": 0,
+      "device": "cuda",
+      "spec": {
+        "name": "baseline-resnet50",
+        "backbone": "resnet50",
+        "checkpoint": null,
+        "note": ""
+      }
+    },
+    "postprocess": {
+      "whiten": "none",
+      "whiten_dim": 0,
+      "dba": false,
+      "dba_k": 3,
+      "dba_alpha": 3.0,
+      "query_expansion": "none",
+      "aqe_top_k": 3,
+      "aqe_alpha": 3.0,
+      "aqe_reverse_weight": 0.5
+    },
+    "embedding_time_s": 125.35,
+    "images_embedded": 12644,
+    "descriptor_dim": 512,
+    "notes": [
+      "{\"gallery_dim\": 512, \"query_dim\": 512}"
+    ],
+    "retrieval": {
+      "num_queries": 503.0,
+      "mINP": 0.2769552208213943,
+      "mRR": 0.9119821696243492,
+      "mean_first_match_rank": 19.958250497017893,
+      "median_first_match_rank": 1.0,
+      "R@1": 0.8906560636182903,
+      "R@5": 0.9363817097415507,
+      "R@10": 0.9443339960238568,
+      "fullRecall@1": 0.051688666773555554,
+      "fullRecall@5": 0.23663663240347285,
+      "fullRecall@10": 0.41038100774870107,
+      "mAP@1": 0.8906560636182903,
+      "mAP@5": 0.8159310801855533,
+      "mAP@10": 0.7454478195077457,
+      "R@1_ci95": [
+        0.8648111332007953,
+        0.9165009940357853
+      ]
+    }
+  },
+  {
+    "name": "dinov2-small",
+    "model": {
+      "backbone": "dinov2_vits14",
+      "pretrained": null,
+      "timm_name": null,
+      "embedding_dim": 512,
+      "pooling": "auto",
+      "head": "arcface",
+      "head_margin": 0.35,
+      "head_scale": 64.0,
+      "head_num_subcenters": 3,
+      "image_size": 224,
+      "l2_normalize": true,
+      "tta": [
+        "identity",
+        "hflip"
+      ],
+      "gradient_checkpointing": false,
+      "checkpoint_version": 2,
+      "backbone_feature_dim": 384,
+      "num_classes": 0,
+      "device": "cuda",
+      "spec": {
+        "name": "dinov2-small",
+        "backbone": "dinov2_vits14",
+        "checkpoint": null,
+        "note": ""
+      }
+    },
+    "postprocess": {
+      "whiten": "none",
+      "whiten_dim": 0,
+      "dba": false,
+      "dba_k": 3,
+      "dba_alpha": 3.0,
+      "query_expansion": "none",
+      "aqe_top_k": 3,
+      "aqe_alpha": 3.0,
+      "aqe_reverse_weight": 0.5
+    },
+    "embedding_time_s": 149.045,
+    "images_embedded": 12644,
+    "descriptor_dim": 512,
+    "notes": [
+      "{\"gallery_dim\": 512, \"query_dim\": 512}"
+    ],
+    "retrieval": {
+      "num_queries": 503.0,
+      "mINP": 0.39534370649602407,
+      "mRR": 0.950279335177504,
+      "mean_first_match_rank": 3.21272365805169,
+      "median_first_match_rank": 1.0,
+      "R@1": 0.9343936381709742,
+      "R@5": 0.974155069582505,
+      "R@10": 0.9801192842942346,
+      "fullRecall@1": 0.05558552985032372,
+      "fullRecall@5": 0.25762509637353115,
+      "fullRecall@10": 0.4568219425220901,
+      "mAP@1": 0.9343936381709742,
+      "mAP@5": 0.873611663353214,
+      "mAP@10": 0.8185483395920773,
+      "R@1_ci95": [
+        0.9134691848906561,
+        0.9533300198807156
+      ]
+    }
+  },
+  {
+    "name": "dinov2-base",
+    "model": {
+      "backbone": "dinov2_vitb14",
+      "pretrained": null,
+      "timm_name": null,
+      "embedding_dim": 512,
+      "pooling": "auto",
+      "head": "arcface",
+      "head_margin": 0.35,
+      "head_scale": 64.0,
+      "head_num_subcenters": 3,
+      "image_size": 224,
+      "l2_normalize": true,
+      "tta": [
+        "identity",
+        "hflip"
+      ],
+      "gradient_checkpointing": false,
+      "checkpoint_version": 2,
+      "backbone_feature_dim": 768,
+      "num_classes": 0,
+      "device": "cuda",
+      "spec": {
+        "name": "dinov2-base",
+        "backbone": "dinov2_vitb14",
+        "checkpoint": null,
+        "note": ""
+      }
+    },
+    "postprocess": {
+      "whiten": "none",
+      "whiten_dim": 0,
+      "dba": false,
+      "dba_k": 3,
+      "dba_alpha": 3.0,
+      "query_expansion": "none",
+      "aqe_top_k": 3,
+      "aqe_alpha": 3.0,
+      "aqe_reverse_weight": 0.5
+    },
+    "embedding_time_s": 334.048,
+    "images_embedded": 12644,
+    "descriptor_dim": 512,
+    "notes": [
+      "{\"gallery_dim\": 512, \"query_dim\": 512}"
+    ],
+    "retrieval": {
+      "num_queries": 503.0,
+      "mINP": 0.4322855552049774,
+      "mRR": 0.9620785684316935,
+      "mean_first_match_rank": 3.029821073558648,
+      "median_first_match_rank": 1.0,
+      "R@1": 0.9502982107355865,
+      "R@5": 0.9781312127236581,
+      "R@10": 0.9840954274353877,
+      "fullRecall@1": 0.056734506270946124,
+      "fullRecall@5": 0.2610682886173428,
+      "fullRecall@10": 0.46870024852471154,
+      "mAP@1": 0.9502982107355865,
+      "mAP@5": 0.8820278330019881,
+      "mAP@10": 0.8341293333473586,
+      "R@1_ci95": [
+        0.9304174950298211,
+        0.9681908548707754
+      ]
+    }
+  }
+]

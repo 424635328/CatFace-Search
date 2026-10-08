@@ -1,0 +1,62 @@
+{
+  "finding": "The HuggingFace dataset `cat-claws/face-verification`, split `calfw`, does not contain cat faces. It contains human faces.",
+  "severity": "critical — using it as a cat-face verification benchmark produces meaningless numbers",
+  "discovered": "2026-10-05",
+  "source_used": {
+    "dataset": "cat-claws/face-verification",
+    "split": "calfw",
+    "file": "data/calfw-00000-of-00001-494813e56bc84049.parquet",
+    "downloaded_bytes": 250784068,
+    "pairs": 6000,
+    "labels": { "same": 3000, "different": 3000 }
+  },
+  "evidence": [
+    {
+      "test": "image geometry",
+      "observation": "All 6000 images are exactly 112x112, RGB, byte-unique (no duplicates).",
+      "interpretation": "The uniform square size indicates images were rescaled from a fixed-size source, not cropped from varied in-the-wild photographs."
+    },
+    {
+      "test": "ImageNet-1k top-1 prediction (torchvision ResNet-50 IMAGENET1K_V2)",
+      "observation": "0/600 images predicted as any cat class. Mean probability mass on the five cat classes = 0.0027. Top-1 classes are Windsor tie (244), neck brace (155), oboe (80), academic gown, wig, military uniform, pickelhaube, bearskin.",
+      "interpretation": "These are the classic ImageNet confusions for cropped HUMAN face photographs (collars, hats, hair, and instruments held near the face). A genuine cat face at 112x112 is predicted 'tabby' or 'Egyptian cat' with high confidence."
+    },
+    {
+      "test": "OpenCV YuNet human-face detector",
+      "observation": "300/300 sampled images contain a detected human face; mean detector confidence 0.9203.",
+      "interpretation": "Conclusive. A human-face detector firing on 100% of images establishes the population."
+    },
+    {
+      "test": "Domain-trained animal-identification model",
+      "model": "AvitoTech/DINO-v2-small-for-animal-identification (fine-tuned on 1,904,157 photos / 695,091 individual cats and dogs)",
+      "observation": "ROC-AUC 0.5613, EER 0.4667 on 2000 pairs. Score separation (positive mean - negative mean) = 0.038.",
+      "interpretation": "A model trained specifically to separate individual pets performs at chance here. If the pairs were genuinely same/different cats, this model would score far above chance. This rules out 'our encoders are too weak' as the explanation."
+    },
+    {
+      "test": "Harness sanity",
+      "observation": "exact_pair_is_argmax_rate = 0.0025 with 2000x2000 similarity; all similarity score means lie in 0.57-0.61 with standard deviation similar to the class separation.",
+      "interpretation": "Scores and labels are aligned; there is simply no signal to find."
+    }
+  ],
+  "measured_results_before_the_finding": {
+    "note": "Kept for the record. These are the numbers that triggered the investigation and must NOT be reported as cat-face verification results.",
+    "protocol": "6000 CALFW pairs, 112x112, TTA identity+hflip, cosine similarity",
+    "baseline_resnet50": { "roc_auc": 0.5876, "eer": 0.4417 },
+    "dinov2_vits14": { "roc_auc": 0.6233, "eer": 0.4107 },
+    "dinov2_vitb14": { "roc_auc": 0.6375, "eer": 0.3933 },
+    "tivial_baselines": {
+      "raw_pixel_cosine_32x32": 0.5508,
+      "colour_histogram_intersection": 0.5288
+    }
+  },
+  "how_it_was_caught": "The absolute AUC values (0.59-0.64) were implausibly close to chance for a task that published work reports above 0.98. Rather than accept or dismiss the number, the protocol was audited against three independent observers: a trivial pixel baseline, an ImageNet classifier, and a species-specific detector.",
+  "correct_interpretation_of_the_original_numbers": "The relative ordering ResNet-50 < DINOv2-S < DINOv2-B was reproduced consistently, which shows the harness ranks models sensibly. It says nothing about cat faces.",
+  "action": "The CALFW verification protocol is withdrawn from the benchmark. Cat-face verification is instead reported on a gallery-based identity corpus (Cat Individual Images: 13536 photos of 518 individual cats), which is independently audited as containing cats and carries individual identity labels.",
+  "methodological_lesson": "A dataset's name and its dataset card are not evidence about its contents. Any benchmark whose absolute score is far below the published state of the art should be audited with an independent, label-free observer (trivial baseline, generic classifier, species detector) before its numbers are reported — and a domain-expert reference model is the cheapest way to separate 'hard data' from 'wrong data'.",
+  "reusable_tooling": [
+    "tools/audit_content.py — ImageNet-observed content audit",
+    "tools/audit_species.py — human-face detector audit (species-specific evidence)",
+    "tools/diagnose_calfw.py — protocol-level diagnosis with trivial baselines",
+    "tools/benchmark_hf_embedder.py — run any HF embedding model as a reference point"
+  ]
+}
