@@ -146,6 +146,16 @@ print(f'all source files tracked ({len(tracked)} files in the repository)')
 "@
 }
 
+# --- documentation references -----------------------------------------------------------------
+Invoke-Check "documentation references real paths" {
+    # Documentation drifts silently: this project's README once documented a seven-step quick
+    # start in which five steps could not run, and nothing failed until a reader tried them.
+    # The check lives in tools/check_docs.py rather than inline here: an inline here-string has to
+    # escape the very backticks it is searching for, and a mis-escaped backtick weakens the check
+    # silently instead of failing loudly.
+    & $python -m tools.check_docs
+}
+
 # --- optional: the fresh-clone check ----------------------------------------------------------
 if ($CloneCheck) {
     Invoke-Check "fresh clone passes the same checks" {
