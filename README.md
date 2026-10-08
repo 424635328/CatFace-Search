@@ -231,8 +231,9 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 **2. 推送前跑一次自检（约 100 秒）**
 
 ```powershell
-.\tools\preflight.ps1              # 就是 CI 的四类检查，带完全相同的 flag
-.\tools\preflight.ps1 -SkipTests   # 约 2 秒，只查 lint / 配置 / 跟踪状态
+.\tools\preflight.ps1              # 就是 CI 的检查，带完全相同的 flag
+.\tools\preflight.ps1 -Fast        # 约 2 秒，跳过测试与包检查
+.\tools\preflight.ps1 -CloneCheck  # 额外做全新克隆验证（最彻底）
 ```
 
 一次失败的 CI 要花两个来回（推送 → 排队 → 失败 → 修 → 再推）。本仓库第一次真实 CI 运行 5 个 job 里 3 个失败，而**全部能在推送前本地发现**——三个坑都是"本地检查与 CI 接近但不相同"，详见 [`docs/PASS-CI-FIRST-TRY.md`](docs/PASS-CI-FIRST-TRY.md)。
@@ -242,10 +243,18 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 `s.bat` 不再裸跑 `git add . && git push`，它调用 `tools\sync.ps1`：**先 preflight，过了才 pull / commit / push**。自检不过就什么都不提交、不推送。
 
 ```powershell
-.\s.bat                                          # 双击等价，带自检
-pwsh -File tools\sync.ps1 -SkipPreflight         # 确实需要绕过时（会打印警告）
-pwsh -File tools\sync.ps1 -Message "fix: ..."    # 自定义提交信息
+.\s.bat                            # 双击等价，带自检
+.\s.bat -DryRun                    # 只读预演：列出将要提交的文件、即将拉取的提交数
+.\s.bat -y                         # 绕过自检（会打印警告）
+.\s.bat -m "fix: 索引边界条件"      # 自定义提交信息
+.\s.bat -NoPush                    # 只本地提交，攒够再一次推
+
+pwsh -File tools\sync.ps1 -?       # 完整参数与退出码
 ```
+
+**退出码是稳定的**，供脚本调用：`0` 成功 / `2` 自检不过 / `3` pull 失败 / `4` 被 pre-commit hook 拒绝 / `5` add 或 commit 失败 / `6` push 失败 / `64` 用法错误。`s.bat` 会把它们翻译成中文说明，不再只丢一个数字。
+
+> **这套工具可以搬到别的仓库。** 通用层（`tools/sync.ps1`、`tools/resolve-python.ps1`、`tools/check_staged.py`、`tools/git-hooks/pre-commit`）不含任何本项目信息，直接复制即可；项目专属内容集中在 `tools/project.config.ps1`，改那个文件就行。仓库里若**没有** `tools/preflight.ps1`，`sync.ps1` 会明确提示"未配置项目检查"并继续，而不是报错。
 
 ---
 
@@ -324,6 +333,8 @@ python -m tools.find_duplicates    # 找出跨身份标签的重复照片（像�
 ```
 
 同步脚本 `tools/sync.ps1`（`s.bat` 调用它）按固定顺序执行：**preflight → pull → commit → push**。顺序是有意的：先验证本地树，再拉取，这样一次 pull 带来的改动不会在未检查的情况下被推出去；`commit` 时还会再过一道 pre-commit hook，与 preflight 相互独立。
+
+**可移植性**：通用层与项目层是分开的（见「快速开始」第 3 步的说明）。`preflight.ps1` 自身不含任何项目路径——那些在 `tools/project.config.ps1`，解释器由 `tools/resolve-python.ps1` 探测（`.venv` → `venv` → `PATH`，Windows 与 POSIX 两种布局都试）。
 ## ⏸️ 训练可随时暂停与续训
 
 每个 epoch 结束都会原子化检查点，中断不丢进度、续训轨迹与不中断时一致（状态含优化器动量、调度器位置、采样器 epoch、RNG）：

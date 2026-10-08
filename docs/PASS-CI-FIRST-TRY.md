@@ -5,12 +5,13 @@
 ## 一条命令
 
 ```powershell
-.\tools\preflight.ps1              # 约 100 秒（含完整测试）
-.\tools\preflight.ps1 -SkipTests   # 约 2 秒（只查 lint / 配置 / 跟踪状态）
+.\tools\preflight.ps1              # 约 100-160 秒（含完整测试）
+.\tools\preflight.ps1 -Fast        # 约 2 秒（跳过测试与包检查）
+.\tools\preflight.ps1 -SkipTests   # 只跳过测试
 .\tools\preflight.ps1 -CloneCheck  # 额外做全新克隆验证（最彻底）
 ```
 
-它就是 CI 的四类检查，**带完全相同的 flag**。
+它就是 CI 的检查，**带完全相同的 flag**，唯一有意加入的是 `--basetemp`（见文末「已知偏差」）。
 
 ## 为什么必须是"完全相同"，而不是"差不多"
 
@@ -90,3 +91,25 @@ python -c "from catface.config import PipelineConfig; PipelineConfig.from_yaml('
 | `tools/git-hooks/pre-commit` | 公开仓库 + `git add . && git push` 的组合 |
 
 **每一条都对应一次真实的失败**，没有一条是"预防性地"写出来的——这也是它们有效的原因。
+
+## 已知偏差：为什么加了 `--basetemp`
+
+CI 里的 pytest 是不带 `--basetemp` 的裸跑，本地却带了一个**独占**的临时目录。这是唯一有意与 CI 不同的地方，理由是一次真实的假红灯：
+
+pytest 默认复用每用户共享的临时根目录，并在其中维护一个 `pytest-current` junction。**被中断的测试运行**会留下指向已删除目标、且 ACL 已不可读的 junction；此后每次 pytest 都在收尾的 `cleanup_dead_symlinks` 里抛 `PermissionError: [WinError 5]` 并以非零码退出——**即使所有测试都通过**。实测：287 passed，exit=1。
+
+对交互式使用可以靠手动清理绕过；但脚本化调用（`s.bat`）必须默认可靠，所以用独占 basetemp 彻底移除共享状态。代价是每次多花约 20-50 秒，换来的是"退出码只反映测试结果"。
+
+## 退出码
+
+`tools/sync.ps1` 供脚本调用，退出码是稳定的契约：
+
+| 码 | 含义 |
+|---|---|
+| 0 | 成功（已推送，或用 `-NoPush` 仅本地提交，或本来就无可提交） |
+| 2 | preflight 未通过，**什么都没提交、没推送** |
+| 3 | `git pull` 失败 |
+| 4 | 被 pre-commit hook 拒绝 |
+| 5 | `git add` 或 `git commit` 失败 |
+| 6 | `git push` 失败 |
+| 64 | 用法错误（无 git、不在工作树内） |
