@@ -30,7 +30,7 @@ CHUNK = 1 << 20
 USER_AGENT = "catface-search/2.0 (+research)"
 
 
-class TruncatedDownload(RuntimeError):
+class TruncatedDownloadError(RuntimeError):
     """Raised when fewer bytes arrive than the server declared."""
 
 
@@ -70,7 +70,7 @@ def fetch(
         ``destination`` once verified.
 
     Raises:
-        TruncatedDownload: The transfer completed but the size does not match.
+        TruncatedDownloadError: The transfer completed but the size does not match.
     """
     destination.parent.mkdir(parents=True, exist_ok=True)
     part = destination.with_suffix(destination.suffix + ".part")
@@ -117,7 +117,7 @@ def fetch(
                 mode = "ab" if offset else "wb"
                 written = offset
                 started = time.perf_counter()
-                with open(part, mode) as handle:
+                with part.open(mode) as handle:
                     while True:
                         block = response.read(CHUNK)
                         if not block:
@@ -150,11 +150,11 @@ def fetch(
         break
 
     if not part.is_file():
-        raise TruncatedDownload(f"No data was written for {url}")
+        raise TruncatedDownloadError(f"No data was written for {url}")
 
     size = part.stat().st_size
     if expected and size != expected:
-        raise TruncatedDownload(
+        raise TruncatedDownloadError(
             f"{destination.name} is {size} bytes but {expected} were expected after "
             f"{max_attempts} attempts"
         )
@@ -181,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
             max_attempts=args.attempts,
             allow_resume=not args.no_resume,
         )
-    except TruncatedDownload as exc:
+    except TruncatedDownloadError as exc:
         print(f"[fetch] FAILED: {exc}", file=sys.stderr)
         return 2
     return 0

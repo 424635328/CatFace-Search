@@ -182,7 +182,7 @@ def locate_calfw(config: PipelineConfig) -> Path | None:
     return None
 
 
-def prepare_dataset(config: PipelineConfig, source: str, force: bool = False) -> dict[str, Any]:
+def prepare_dataset(config: PipelineConfig, source: str, _force: bool = False) -> dict[str, Any]:
     """Build the face-crop manifest for one source and split it by identity."""
     writer = make_writer(config.data)
     manifest_dir = Path(config.data.manifest)
@@ -284,12 +284,12 @@ def load_splits_from_manifest(
 
 
 def build_eval_split(
-    config: PipelineConfig,
+    _config: PipelineConfig,
     query_manifest: Path,
     gallery_manifest: Path,
-    queries_per_identity: int = 1,
+    _queries_per_identity: int = 1,
     name: str = "cross_dataset",
-    require_min_identity_images: int = 2,
+    _require_min_identity_images: int = 2,
 ) -> Split:
     """Combine a query and a gallery manifest into one evaluation protocol.
 

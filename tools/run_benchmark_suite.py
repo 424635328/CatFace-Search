@@ -29,10 +29,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.config import load_config  # noqa: E402
-from catface.eval.benchmark import PostprocessConfig  # noqa: E402
-from catface.logging_utils import configure_utf8_console, environment_report, get_logger, new_run_id  # noqa: E402
-from catface.pipeline import make_embedder  # noqa: E402
+from catface.config import load_config
+from catface.eval.benchmark import PostprocessConfig
+from catface.logging_utils import (
+    configure_utf8_console,
+    environment_report,
+    get_logger,
+    new_run_id,
+)
+from catface.pipeline import make_embedder
 
 LOGGER = get_logger("tools.suite")
 
@@ -65,7 +70,7 @@ def readable_checkpoint(path: Path) -> bool:
 
         payload = torch.load(path, map_location="cpu", weights_only=False)
         return isinstance(payload, dict) and "embedder_config" in payload
-    except Exception as exc:  # noqa: BLE001 - reported, not raised
+    except Exception as exc:
         LOGGER.warning("Skipping unreadable checkpoint %s (%s)", path, exc)
         return False
 
@@ -132,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest = Path(config.data.manifest) / "cat_individuals_manifest.jsonl"
         splits = Path(config.data.manifest) / "cat_individuals_splits"
         val_records = load_split(manifest, splits, "val")
-        name, path = trained[-1]  # the most recent run
+        _name, path = trained[-1]  # the most recent run
         embedder = make_embedder(config, checkpoint=path)
         # Embed the val protocol once, then score the whole grid on cached descriptors.
         cache = embed_protocol(embedder, val_records, config.model.image_size, 1, config.seed)

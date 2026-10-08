@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         root = Path(args.directory)
         paths = sorted(str(p) for p in root.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"})
     else:
-        with open(args.csv, encoding="utf-8") as handle:
+        with Path(args.csv).open(encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
         paths = []
         for row in rows:

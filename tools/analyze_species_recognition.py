@@ -45,9 +45,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.errors import CatFaceError  # noqa: E402
-from catface.logging_utils import configure_utf8_console, get_logger  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig, embed_records  # noqa: E402
+from catface.errors import CatFaceError
+from catface.logging_utils import configure_utf8_console, get_logger
+from catface.models.embedder import Embedder, EmbedderConfig, embed_records
 
 LOGGER = get_logger("tools.species")
 
@@ -121,7 +121,7 @@ def nearest_neighbour_accuracy(
     }
     return {
         "accuracy": round(float(correct.mean()), 4),
-        "num_items": int(len(labels)),
+        "num_items": len(labels),
         "classes": label_values,
         "confusion": matrix,
     }
@@ -262,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             "name": "Oxford-IIIT Pet (all 37 breeds, cats and dogs)",
             "images": len(rows),
             "species_counts": dict(Counter(r[1] for r in rows)),
-            "breeds": len(set(r[2] for r in rows)),
+            "breeds": len({r[2] for r in rows}),
             "species_label_rule": "file name capitalised => cat (the dataset's documented rule)",
             "note": "identity here is the breed, which is what this corpus labels",
         },
@@ -322,7 +322,7 @@ def _verdict(report: dict) -> dict:
         }
     if untrained:
         reference = next(iter(untrained.values()))["species"]
-        for label, entry in out.items():
+        for entry in out.values():
             delta = entry["species_1nn"] - reference["1nn_accuracy"]
             entry["species_1nn_vs_untrained_head"] = round(delta, 4)
             entry["verdict"] = (

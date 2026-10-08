@@ -20,8 +20,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.logging_utils import configure_utf8_console, get_logger  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig  # noqa: E402
+from catface.logging_utils import configure_utf8_console, get_logger
+from catface.models.embedder import Embedder, EmbedderConfig
 
 LOGGER = get_logger("tools.diagnose_amp")
 
@@ -41,7 +41,7 @@ def run_steps(embedder: Embedder, device: str, amp: bool, steps: int = 200, batc
     before = {name: p.detach().clone() for name, p in embedder.backbone.network.named_parameters()}
     grad_norms: list[float] = []
 
-    for step in range(steps):
+    for _step in range(steps):
         # Fresh random batch each step, like the real loop.
         images = torch.randn(batch, 3, 224, 224, device=device)
         labels = torch.randint(0, classes, (batch,), device=device)

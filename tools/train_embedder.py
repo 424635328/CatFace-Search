@@ -27,13 +27,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.config import load_config  # noqa: E402
-from catface.data.manifest import Manifest  # noqa: E402
-from catface.errors import CatFaceError  # noqa: E402
-from catface.eval.protocols import assert_identity_disjoint, build_identity_split  # noqa: E402
-from catface.logging_utils import configure_utf8_console, environment_report, get_logger, new_run_id  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig, embed_records  # noqa: E402
-from catface.train.loop import TrainConfigResolved, train_metric_learner  # noqa: E402
+from catface.config import load_config
+from catface.data.manifest import Manifest
+from catface.errors import CatFaceError
+from catface.eval.protocols import assert_identity_disjoint, build_identity_split
+from catface.logging_utils import (
+    configure_utf8_console,
+    environment_report,
+    get_logger,
+    new_run_id,
+)
+from catface.models.embedder import Embedder, EmbedderConfig, embed_records
+from catface.train.loop import TrainConfigResolved, train_metric_learner
 
 LOGGER = get_logger("tools.train")
 

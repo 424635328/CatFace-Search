@@ -135,7 +135,7 @@ class TestPersistence:
         assert restored.metric == "cosine"
 
     def test_existing_metadata_is_required(self, tmp_path):
-        with pytest.raises(ArtifactError, match="index_meta.json"):
+        with pytest.raises(ArtifactError, match=r"index_meta\.json"):
             VectorIndex.load(tmp_path / "nothing")
 
     def test_future_index_version_is_rejected(self, tmp_path):

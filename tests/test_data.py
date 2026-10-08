@@ -171,7 +171,7 @@ class TestAlignment:
             alignment_affine(np.zeros((4, 2)), np.zeros((3, 2)))
 
     def test_too_few_landmarks_is_rejected(self):
-        with pytest.raises(DataError, match="[Aa]t least 3"):
+        with pytest.raises(DataError, match=r"[Aa]t least 3"):
             alignment_affine(np.zeros((2, 2)), np.zeros((2, 2)))
 
     def test_mostly_consistent_landmarks_are_accepted(self):

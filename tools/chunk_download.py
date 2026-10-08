@@ -29,7 +29,7 @@ from pathlib import Path
 USER_AGENT = "catface-search/2.0 (+research)"
 
 
-class RangeUnsupported(RuntimeError):
+class RangeUnsupportedError(RuntimeError):
     """The server ignored the Range header, so windowed transfer is impossible."""
 
 
@@ -91,7 +91,7 @@ def download_window(
     written = 0
     with urllib.request.urlopen(request, timeout=timeout) as response:
         if response.status != 206:
-            raise RangeUnsupported(f"expected 206, got {response.status}")
+            raise RangeUnsupportedError(f"expected 206, got {response.status}")
         while True:
             block = response.read(1 << 18)
             if not block:
@@ -126,11 +126,11 @@ def chunk_download(
     expected = expect_bytes or total
     print(f"[chunk] server total={total} ranges={ranges_ok} expected={expected}", flush=True)
     if not ranges_ok:
-        raise RangeUnsupported(
+        raise RangeUnsupportedError(
             f"{url} does not support Range requests; use tools/fetch.py instead"
         )
     if expected is None:
-        raise RangeUnsupported("Could not determine the expected size; refusing to guess")
+        raise RangeUnsupportedError("Could not determine the expected size; refusing to guess")
 
     if destination.is_file() and destination.stat().st_size == expected:
         print(f"[chunk] already complete: {destination}")
@@ -149,19 +149,19 @@ def chunk_download(
         while attempt < max_retries_per_window:
             attempt += 1
             try:
-                with open(part, "ab") as handle:
+                with part.open("ab") as handle:
                     written = download_window(url, headers, have, end, handle, timeout=timeout)
                 if written == 0:
                     raise RuntimeError("window returned no data")
                 break
-            except RangeUnsupported:
+            except RangeUnsupportedError:
                 raise
             except Exception as exc:
                 # A partially written window leaves the file longer than ``have``;
                 # truncate back so the next attempt starts at a known offset.
                 current = part.stat().st_size
                 if current > have:
-                    with open(part, "r+b") as handle:
+                    with part.open("r+b") as handle:
                         handle.truncate(have)
                 delay = min(1.5 * attempt, 15.0)
                 print(f"[chunk] window {have}-{end} attempt {attempt} failed: "
@@ -218,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             window_bytes=int(args.window_mb * (1 << 20)),
             expect_bytes=args.expect_bytes or None,
         )
-    except RangeUnsupported as exc:
+    except RangeUnsupportedError as exc:
         print(f"[chunk] FAILED: {exc}", file=sys.stderr)
         return 3
     except Exception as exc:

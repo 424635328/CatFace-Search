@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    with open(args.csv, encoding="utf-8") as handle:
+    with Path(args.csv).open(encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))[: args.limit]
 
     paths: list[str] = []

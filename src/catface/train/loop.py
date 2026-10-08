@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import random
 import signal
 import time
 from collections import Counter
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -146,7 +146,7 @@ class TrainingHistory:
         return target
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "TrainingHistory":
+    def from_dict(cls, payload: dict[str, Any]) -> TrainingHistory:
         """Rebuild a history from :meth:`to_dict` output, tolerating missing fields."""
         epochs = [
             EpochRecord(**{k: v for k, v in entry.items() if k in EpochRecord.__annotations__})
@@ -249,7 +249,7 @@ def _atomic_torch_save(payload: Any, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     torch.save(payload, tmp)
-    os.replace(tmp, path)
+    tmp.replace(path)
     return path
 
 
@@ -343,7 +343,7 @@ class IdentityImageDataset:
         self.failures = 0
 
     def _build_transform(self, mean: Sequence[float], std: Sequence[float]):
-        import torchvision.transforms as T
+        import torchvision.transforms as T  # noqa: N812 - T is the torchvision convention
 
         if not self.train:
             return T.Compose([
@@ -572,10 +572,10 @@ class Trainer:
 
     def _remove_signal_handlers(self) -> None:
         for number, previous in self._previous_signal_handlers.items():
-            try:
+            # Restoring a handler can fail if the thread is not the main thread or the
+            # platform does not support it; both are non-fatal at teardown.
+            with suppress(ValueError, OSError, TypeError):  # pragma: no cover
                 signal.signal(number, previous)
-            except (ValueError, OSError, TypeError):  # pragma: no cover
-                pass
         self._previous_signal_handlers.clear()
 
     def capture_state(self) -> TrainingState:
@@ -1055,11 +1055,11 @@ def _torch():
 
 __all__ = [
     "BEST_FILENAME",
+    "PAUSE_FILENAME",
+    "STATE_FILENAME",
     "EpochRecord",
     "IdentityImageDataset",
-    "PAUSE_FILENAME",
     "PKBatchSampler",
-    "STATE_FILENAME",
     "TrainConfigResolved",
     "Trainer",
     "TrainingHistory",

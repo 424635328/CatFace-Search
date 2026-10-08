@@ -168,7 +168,8 @@ def _set(config: PipelineConfig, section: str, key: str, value: Any) -> Pipeline
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
-def cmd_doctor(config: PipelineConfig, args: argparse.Namespace) -> int:
+def cmd_doctor(config: PipelineConfig, _args: argparse.Namespace) -> int:
+    """Report environment and data readiness. Takes no command-specific arguments."""
     from .pipeline import environment_pipeline
 
     report = environment_pipeline(config)

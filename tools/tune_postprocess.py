@@ -38,13 +38,13 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.data.manifest import Manifest  # noqa: E402
-from catface.errors import CatFaceError  # noqa: E402
-from catface.eval.benchmark import PostprocessConfig, apply_postprocessing  # noqa: E402
-from catface.eval.metrics import evaluate_retrieval  # noqa: E402
-from catface.eval.protocols import Split, build_identity_split  # noqa: E402
-from catface.logging_utils import configure_utf8_console, get_logger  # noqa: E402
-from catface.models.embedder import Embedder, embed_records  # noqa: E402
+from catface.data.manifest import Manifest
+from catface.errors import CatFaceError
+from catface.eval.benchmark import PostprocessConfig, apply_postprocessing
+from catface.eval.metrics import evaluate_retrieval
+from catface.eval.protocols import Split, build_identity_split
+from catface.logging_utils import configure_utf8_console, get_logger
+from catface.models.embedder import Embedder, embed_records
 
 LOGGER = get_logger("tools.tune")
 

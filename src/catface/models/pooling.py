@@ -37,8 +37,7 @@ class GeM:
     def __call__(self, tokens: Any) -> Any:
         """Pool ``(B, N, D)`` tokens into ``(B, D)``."""
         clamped = tokens.clamp(min=self.eps).pow(self.p)
-        pooled = clamped.mean(dim=1).pow(1.0 / self.p)
-        return pooled
+        return clamped.mean(dim=1).pow(1.0 / self.p)
 
     def parameters(self):
         yield self.p

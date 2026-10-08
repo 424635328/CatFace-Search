@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import queue
 import sys
 import threading
@@ -130,7 +131,7 @@ def fetch_range(
     with urllib.request.urlopen(request, timeout=timeout) as response:
         if response.status != 206:
             raise DownloadError(f"expected 206 for a ranged request, got {response.status}")
-        with open(destination, "wb") as handle:
+        with destination.open("wb") as handle:
             while written < expected:
                 block = response.read(min(READ_BLOCK, expected - written))
                 if not block:
@@ -345,11 +346,11 @@ def parallel_download(
     # chunk file was length-verified when it was written.
     assembled = destination.with_suffix(destination.suffix + ".assembling")
     written = 0
-    with open(assembled, "wb") as sink:
+    with assembled.open("wb") as sink:
         for _start, _end, part_file in assembly:
             if not part_file.is_file():
                 raise DownloadError(f"missing chunk file {part_file.name} during assembly")
-            with open(part_file, "rb") as source:
+            with part_file.open("rb") as source:
                 while True:
                     block = source.read(1 << 22)
                     if not block:
@@ -371,10 +372,8 @@ def parallel_download(
     # Keep part files only on failure, so a successful run leaves no 11 GB of duplicates.
     for part_file in parts_dir.glob("chunk_*.bin"):
         part_file.unlink()
-    try:
+    with contextlib.suppress(OSError):
         parts_dir.rmdir()
-    except OSError:
-        pass
     return destination
 
 

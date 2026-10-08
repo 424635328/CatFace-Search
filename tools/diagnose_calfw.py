@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     }
 
-    left, right, labels, raw_scores = raw_pixel_scores(pairs_path, args.limit)
+    _left, _right, labels, raw_scores = raw_pixel_scores(pairs_path, args.limit)
     raw_metrics = evaluate_verification(raw_scores, labels)
     report["baseline_raw_pixels"] = raw_metrics.to_dict()
 

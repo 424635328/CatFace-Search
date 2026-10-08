@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[hf] device={device} model={args.model}")
 
-    with open(args.pairs, encoding="utf-8") as handle:
+    with Path(args.pairs).open(encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     if args.limit:
         rows = rows[: args.limit]

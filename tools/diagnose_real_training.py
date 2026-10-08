@@ -19,13 +19,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.data.manifest import Manifest  # noqa: E402
-from catface.logging_utils import configure_utf8_console, get_logger  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig  # noqa: E402
-from catface.train.loop import IdentityImageDataset, PKBatchSampler  # noqa: E402
+from catface.data.manifest import Manifest
+from catface.logging_utils import configure_utf8_console, get_logger
+from catface.models.embedder import Embedder, EmbedderConfig
+from catface.train.loop import IdentityImageDataset, PKBatchSampler
 
 LOGGER = get_logger("tools.diagnose_real")
 

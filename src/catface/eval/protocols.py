@@ -194,7 +194,7 @@ def build_pair_split(
     pair_labels: Sequence[int],
     pair_paths_a: Sequence[str],
     pair_paths_b: Sequence[str],
-    name: str = "verification",
+    _name: str = "verification",
 ) -> tuple[list[FaceRecord], np.ndarray]:
     """Validate a labelled verification-pair protocol.
 

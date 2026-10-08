@@ -247,7 +247,7 @@ class TestProtocol:
         assert split.num_gallery == 20
 
     def test_identities_with_a_single_image_are_dropped(self):
-        records = self._records(n_identities=3, per_identity=2) + [make_record("solo:0", "solo")]
+        records = [*self._records(n_identities=3, per_identity=2), make_record("solo:0", "solo")]
         split = build_identity_split(records, queries_per_identity=1, seed=5)
         assert "solo" not in set(split.query_labels.tolist())
 
@@ -266,7 +266,7 @@ class TestProtocol:
         assert split.query_labels.tolist() == ["only"]
 
     def test_identity_with_too_few_images_cannot_be_queried(self):
-        records = self._records(n_identities=3, per_identity=3) + [make_record("solo:0", "solo")]
+        records = [*self._records(n_identities=3, per_identity=3), make_record("solo:0", "solo")]
         split = build_identity_split(records, queries_per_identity=3)
         assert "solo" not in set(split.query_labels.tolist())
 

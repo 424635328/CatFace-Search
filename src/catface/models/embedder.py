@@ -11,11 +11,11 @@ which variant produced a given set of vectors.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import numpy as np
 
@@ -100,8 +100,8 @@ def _reconcile_pos_embed(network: Any, state: dict[str, Any]) -> dict[str, Any]:
     target_tokens = int(target.shape[1])
     incoming_patches = incoming_tokens - prefix
     target_patches = target_tokens - prefix
-    incoming_grid = int(round(math.sqrt(incoming_patches)))
-    target_grid = int(round(math.sqrt(target_patches)))
+    incoming_grid = round(math.sqrt(incoming_patches))
+    target_grid = round(math.sqrt(target_patches))
     if (
         incoming_patches <= 0
         or incoming_grid * incoming_grid != incoming_patches
@@ -173,8 +173,7 @@ class Embedder:
 
     # -- module plumbing ----------------------------------------------------
     def _modules(self) -> list[Any]:
-        modules = [self.backbone]  # type: ignore[list-item]
-        return modules
+        return [self.backbone]  # type: ignore[list-item]
 
     def to(self, device: Any) -> Embedder:
         """Move every learnable tensor to ``device`` and record it.
@@ -411,7 +410,14 @@ class Embedder:
         return embedder
 
     @staticmethod
-    def _load_split(embedder: Embedder, state: Mapping[str, Any], strict: bool) -> tuple[list[str], list[str]]:
+    def _load_split(
+        embedder: Embedder,
+        state: Mapping[str, Any],
+        # Kept as ``strict`` rather than renamed to ``_strict`` because both call sites pass it
+        # as a keyword argument; renaming the parameter silently breaks them at runtime, which
+        # is exactly what happened when this was first "fixed" to satisfy the linter.
+        strict: bool,  # noqa: ARG004 - part of the call contract, not an unused argument
+    ) -> tuple[list[str], list[str]]:
         """Load backbone and head weights separately, tolerating absent groups."""
         head_state = {k: v for k, v in state.items() if k.startswith("head.")}
         gem_state = {k: v for k, v in state.items() if k == "gem.p"}
@@ -506,7 +512,7 @@ def build_tta_transforms(image_size: int, views: Sequence[str] = ("identity", "h
     in a way that has nothing to do with identity, and colour jitter at test time
     measurably hurts face matching.
     """
-    import torchvision.transforms as T
+    import torchvision.transforms as T  # noqa: N812 - T is the torchvision convention
 
     base = [
         T.Resize(int(image_size * 1.14), interpolation=T.InterpolationMode.BICUBIC),
@@ -519,7 +525,7 @@ def build_tta_transforms(image_size: int, views: Sequence[str] = ("identity", "h
         if view == "identity":
             transforms.append((view, T.Compose(base)))
         elif view == "hflip":
-            transforms.append((view, T.Compose(base + [T.RandomHorizontalFlip(p=1.0)])))
+            transforms.append((view, T.Compose([*base, T.RandomHorizontalFlip(p=1.0)])))
         elif view == "scale_112":
             transforms.append((
                 view,
@@ -541,7 +547,7 @@ def embed_records(
     image_size: int | None = None,
     batch_size: int = 32,
     views: Sequence[str] | None = None,
-    num_workers: int = 0,
+    _num_workers: int = 0,
     normalize: bool = True,
 ) -> EmbeddingResult:
     """Embed a list of image files with TTA, in batches.

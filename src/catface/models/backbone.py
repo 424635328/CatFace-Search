@@ -14,10 +14,11 @@ pretending they are the same thing.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol
+from typing import Any, Callable, ClassVar, Protocol
 
 from ..errors import ModelError
 from ..logging_utils import get_logger
@@ -25,7 +26,7 @@ from ..logging_utils import get_logger
 LOGGER = get_logger("models.backbone")
 
 
-@dataclass(slots=True)
+@dataclass
 class BackboneOutput:
     """Result of one forward pass through a backbone."""
 
@@ -160,7 +161,7 @@ class Dinov2Backbone:
     supports_tokens = True
     prefix_tokens = 1  # class token
 
-    _HUB_ENTRY = {
+    _HUB_ENTRY: ClassVar[dict[str, tuple[str, str]]] = {
         "dinov2_vits14": ("facebookresearch/dinov2", "dinov2_vits14"),
         "dinov2_vitb14": ("facebookresearch/dinov2", "dinov2_vitb14"),
         "dinov2_vitl14": ("facebookresearch/dinov2", "dinov2_vitl14"),
@@ -323,7 +324,7 @@ class TimmVitBackbone:
         native_tokens = int(self._native_pos_embed.shape[1])
         prefix_count = int(self.network.num_prefix_tokens)
         native_patches = native_tokens - prefix_count
-        self._native_grid = int(round(math.sqrt(max(native_patches, 1))))
+        self._native_grid = round(math.sqrt(max(native_patches, 1)))
         if self._native_grid * self._native_grid != native_patches:
             self._native_grid = 0  # not a square grid; leave the embedding alone
 
@@ -456,7 +457,7 @@ class ClipBackbone:
     supports_tokens = True
     prefix_tokens = 1  # class token
 
-    _VARIANTS = {
+    _VARIANTS: ClassVar[dict[str, tuple[str, str]]] = {
         "clip_vitb32": ("ViT-B-32", "openai"),
         "clip_vitb16": ("ViT-B-16", "openai"),
         "clip_vitl14": ("ViT-L-14", "openai"),

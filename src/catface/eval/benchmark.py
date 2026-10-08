@@ -141,7 +141,7 @@ def apply_postprocessing(
     query: np.ndarray,
     gallery: np.ndarray,
     config: PostprocessConfig,
-    seed: int = 1337,
+    _seed: int = 1337,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
     """Apply the configured descriptor transforms.
 

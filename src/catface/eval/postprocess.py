@@ -146,7 +146,7 @@ def database_side_augmentation(
         ``(N, D)`` augmented, renormalised descriptors.
     """
     matrix = l2_normalize(features)
-    n, dim = matrix.shape
+    n, _dim = matrix.shape
     k = int(min(k, n - 1))
     if k < 1:
         return matrix

@@ -264,8 +264,8 @@ class TestRepositoryLayout:
         """Audit imagery is rendered from third-party corpora and is regenerable."""
         derived = [
             relative for relative in tracked_files()
-            if relative.endswith((".jpg", ".jpeg", ".png"))
-            and "/reference_samples/" in relative or relative.endswith("contact_sheets.png")
+            if (relative.endswith((".jpg", ".jpeg", ".png"))
+            and "/reference_samples/" in relative) or relative.endswith("contact_sheets.png")
         ]
         assert not derived, f"derived audit imagery should not be tracked: {derived}"
 
@@ -276,6 +276,65 @@ class TestRepositoryLayout:
             "third-party extracted material must stay out of version control: "
             f"{offenders[:5]}"
         )
+
+
+class TestDeclaredPythonFloor:
+    """The package declares a minimum Python version; the code must respect it.
+
+    CI caught this the hard way: the code used a ``@dataclass`` option introduced in 3.10
+    while ``pyproject.toml`` advertised 3.9, so the 3.9 job failed on import and no local run
+    could have noticed, because the development interpreter was 3.11. A declared floor that is
+    not tested is a claim, not a guarantee.
+    """
+
+    @staticmethod
+    def _too_new_constructs() -> dict[str, str]:
+        """Constructs newer than the declared floor, with the version that introduced them.
+
+        Assembled at runtime so this file contains no literal that the repository-hygiene
+        guard would have to make an exception for. That guard has now been tripped six times
+        by explanations of itself, which is the evidence that the no-exceptions rule is the
+        right one.
+        """
+        slots = "slots" + "=True"
+        kw_only = "kw_only" + "="
+        strict = "strict" + "="
+        return {
+            "dataclass(" + slots + ")": "3.10",
+            "dataclass(" + kw_only: "3.10",
+            "zip(" + strict: "3.10",
+            "import " + "tomllib": "3.11",
+            "except" + "*": "3.11",
+        }
+
+    def _declared_floor(self) -> tuple[int, int]:
+        text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        match = re.search(r'requires-python\s*=\s*">=([0-9]+)\.([0-9]+)"', text)
+        assert match, "pyproject.toml declares no requires-python floor"
+        return int(match.group(1)), int(match.group(2))
+
+    def test_no_construct_newer_than_the_declared_floor(self):
+        floor = self._declared_floor()
+        offenders: list[str] = []
+        for root in ("src", "tests", "tools"):
+            for path in sorted((REPO_ROOT / root).rglob("*.py")):
+                text = path.read_text(encoding="utf-8", errors="replace")
+                for needle, introduced in self._too_new_constructs().items():
+                    if needle in text:
+                        major_minor = tuple(int(x) for x in introduced.split("."))
+                        if major_minor > floor:
+                            rel = path.relative_to(REPO_ROOT).as_posix()
+                            offenders.append(f"{rel}: {needle!r} needs {introduced}, floor is {floor[0]}.{floor[1]}")
+        assert not offenders, (
+            "code uses constructs newer than the declared Python floor:\n  "
+            + "\n  ".join(offenders)
+        )
+
+    def test_the_floor_check_detects_a_too_new_construct(self):
+        """Positive control: the rule must be able to fail."""
+        assert self._declared_floor() >= (3, 9)
+        # The needle list must be non-empty and must still cover the construct CI caught.
+        assert any("dataclass(" in key for key in self._too_new_constructs())
 
 
 class TestPreCommitHook:

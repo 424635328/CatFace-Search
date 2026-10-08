@@ -20,19 +20,18 @@ torch = pytest.importorskip("torch")
 # ruff: noqa: E402 - these imports must follow importorskip, which would otherwise be
 # reported as an unused import and the suite would fail rather than skip without torch.
 
-from catface.errors import ModelError  # noqa: E402
-from catface.eval.protocols import build_identity_split  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig  # noqa: E402
-from catface.train.loop import (  # noqa: E402
+from catface.errors import ModelError
+from catface.eval.protocols import build_identity_split
+from catface.models.embedder import Embedder, EmbedderConfig
+from catface.train.loop import (
     BEST_FILENAME,
     PAUSE_FILENAME,
-    Trainer,
     TrainConfigResolved,
+    Trainer,
     TrainingState,
     train_metric_learner,
 )
-
-from test_training import synthetic_records  # noqa: E402
+from test_training import synthetic_records
 
 
 def build(tmp_path, epochs: int = 3, identities: int = 6, per_identity: int = 4,
@@ -304,11 +303,11 @@ class TestWrapper:
     def _args(self, tmp_path, **overrides):
         records = synthetic_records(tmp_path, identities=6, per_identity=4)
         val_split = build_identity_split(records, queries_per_identity=1, seed=0, name="val")
-        settings = dict(
-            epochs=2, batch_size=4, lr=1e-3, identities_per_batch=2, samples_per_identity=2,
-            val_every=1, num_workers=0, image_size=32, output_dir=tmp_path / "wrap",
-            amp=False, warmup_epochs=0, early_stop_patience=0,
-        )
+        settings = {
+            "epochs": 2, "batch_size": 4, "lr": 1e-3, "identities_per_batch": 2, "samples_per_identity": 2,
+            "val_every": 1, "num_workers": 0, "image_size": 32, "output_dir": tmp_path / "wrap",
+            "amp": False, "warmup_epochs": 0, "early_stop_patience": 0,
+        }
         settings.update(overrides)
         config = TrainConfigResolved(**settings)
         embedder = Embedder(

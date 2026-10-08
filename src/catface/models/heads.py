@@ -144,7 +144,7 @@ class MetricHead:
         weight = torch.nn.functional.normalize(self.module.weight, dim=1)  # (C*K, D)
 
         if self.kind == "subcenter_arcface":
-            batch, dim = embeddings.shape
+            batch, _dim = embeddings.shape
             cosine = torch.nn.functional.linear(embeddings, weight)
             cosine = cosine.view(batch, self.num_classes, self.num_subcenters)
             cosine = cosine.max(dim=2).values

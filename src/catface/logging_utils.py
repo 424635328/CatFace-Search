@@ -17,7 +17,7 @@ import sys
 import time
 import uuid
 from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -208,10 +208,8 @@ def configure_utf8_console() -> None:
         stream = getattr(sys, stream_name, None)
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
-            try:
+            with suppress(Exception):
                 reconfigure(encoding="utf-8", errors="replace")
-            except Exception:
-                pass
     if platform.system() == "Windows":
         try:  # pragma: no cover - platform specific
             import ctypes

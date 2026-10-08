@@ -223,7 +223,7 @@ class TestPipelineOrdering:
         """The composed transform used by the benchmark must be numerically safe."""
         from catface.eval.benchmark import PostprocessConfig, apply_postprocessing
 
-        features, labels = clustered_features(n_identities=6, per_identity=4, dim=32)
+        features, _labels = clustered_features(n_identities=6, per_identity=4, dim=32)
         query, gallery = features[:6], features[6:]
 
         for config in (

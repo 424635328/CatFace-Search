@@ -41,8 +41,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from catface.data.cropping import measure_quality, quality_flags  # noqa: E402
-from catface.logging_utils import configure_utf8_console, get_logger  # noqa: E402
+from catface.data.cropping import measure_quality, quality_flags
+from catface.logging_utils import configure_utf8_console, get_logger
 
 LOGGER = get_logger("corpus.analysis")
 

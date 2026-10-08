@@ -18,11 +18,11 @@ torch = pytest.importorskip("torch")
 # ruff: noqa: E402 - these imports must follow importorskip, which would otherwise be
 # reported as an unused import and the suite would fail rather than skip without torch.
 
-from catface.data.manifest import FaceRecord  # noqa: E402
-from catface.errors import ModelError  # noqa: E402
-from catface.eval.protocols import build_identity_split  # noqa: E402
-from catface.models.embedder import Embedder, EmbedderConfig  # noqa: E402
-from catface.train.loop import (  # noqa: E402
+from catface.data.manifest import FaceRecord
+from catface.errors import ModelError
+from catface.eval.protocols import build_identity_split
+from catface.models.embedder import Embedder, EmbedderConfig
+from catface.train.loop import (
     IdentityImageDataset,
     PKBatchSampler,
     TrainConfigResolved,

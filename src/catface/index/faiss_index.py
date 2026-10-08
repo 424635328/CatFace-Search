@@ -216,7 +216,7 @@ class VectorIndex:
             json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8"
         )
         (target / "ids.txt").write_text("\n".join(self.ids) + "\n", encoding="utf-8")
-        with open(target / "vectors.pkl", "wb") as handle:
+        with (target / "vectors.pkl").open("wb") as handle:
             pickle.dump({"vectors": self._vectors, "ids": self.ids}, handle, protocol=4)
         if self._faiss_index is not None:
             faiss = self._load_faiss()
@@ -244,9 +244,9 @@ class VectorIndex:
             dim=int(meta["dim"]),
             kind=str(meta["kind"]),
             metric=str(meta.get("metric", "cosine")),
-            **{k: v for k, v in meta.get("params", {}).items()},
+            **dict(meta.get("params", {}).items()),
         )
-        with open(target / "vectors.pkl", "rb") as handle:
+        with (target / "vectors.pkl").open("rb") as handle:
             payload = pickle.load(handle)
         index._vectors = np.asarray(payload["vectors"], dtype=np.float32)
         index.ids = list(payload["ids"])
