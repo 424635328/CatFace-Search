@@ -19,6 +19,7 @@ Both guards scan **tracked** files, which is the set that becomes public.
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import subprocess
 from pathlib import Path
@@ -27,11 +28,46 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+
+def _load_tool(name: str):
+    """Load ``tools/<name>.py`` as a module.
+
+    ``tools/`` has no ``__init__.py``: it is a namespace package that works when invoked as
+    ``python -m tools.x`` from the repository root. Loading by path keeps the test independent of
+    the working directory and of whether the repository root is importable.
+    """
+    spec = importlib.util.spec_from_file_location(name, REPO_ROOT / "tools" / f"{name}.py")
+    assert spec and spec.loader, f"cannot load tools/{name}.py"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+check_staged = _load_tool("check_staged")
+
 #: Binary and vendored formats where a byte scan is meaningless or misleading.
 SKIP_SUFFIXES = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp",
-    ".zip", ".gz", ".tar", ".7z",
-    ".pt", ".pth", ".ckpt", ".pkl", ".bin", ".onnx", ".tflite", ".npy", ".npz", ".index", ".faiss",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".zip",
+    ".gz",
+    ".tar",
+    ".7z",
+    ".pt",
+    ".pth",
+    ".ckpt",
+    ".pkl",
+    ".bin",
+    ".onnx",
+    ".tflite",
+    ".npy",
+    ".npz",
+    ".index",
+    ".faiss",
 }
 
 #: Anything under these paths is a copy of someone else's material, reproduced verbatim on
@@ -41,9 +77,7 @@ VENDORED_PREFIXES = ("docs/archive/third-party/",)
 
 def tracked_files() -> list[str]:
     """Paths known to git. Empty when git is unavailable, so the suite still runs from a tarball."""
-    result = subprocess.run(
-        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=False
-    )
+    result = subprocess.run(["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         pytest.skip("not a git working tree")
     return [line for line in result.stdout.splitlines() if line.strip()]
@@ -234,9 +268,7 @@ class TestNoSecrets:
                 if _SECRET.search(line):
                     # Report the location and the variable name, never the value.
                     offenders.append(f"{relative}:{number}: {line.split('=')[0].strip()[:40]}")
-        assert not offenders, (
-            "possible credentials in tracked files:\n  " + "\n  ".join(offenders)
-        )
+        assert not offenders, "possible credentials in tracked files:\n  " + "\n  ".join(offenders)
 
     def test_the_secret_guard_actually_detects_a_key(self):
         """Positive control, using a synthetic value rather than a real one."""
@@ -256,16 +288,17 @@ class TestRepositoryLayout:
             for relative in tracked_files()
             if (path := REPO_ROOT / relative).is_file() and path.stat().st_size > limit
         ]
-        assert not offenders, (
-            "tracked files over 5 MB belong in .gitignore or Git LFS: " + ", ".join(offenders)
+        assert not offenders, "tracked files over 5 MB belong in .gitignore or Git LFS: " + ", ".join(
+            offenders
         )
 
     def test_archived_derived_imagery_is_not_tracked(self):
         """Audit imagery is rendered from third-party corpora and is regenerable."""
         derived = [
-            relative for relative in tracked_files()
-            if (relative.endswith((".jpg", ".jpeg", ".png"))
-            and "/reference_samples/" in relative) or relative.endswith("contact_sheets.png")
+            relative
+            for relative in tracked_files()
+            if (relative.endswith((".jpg", ".jpeg", ".png")) and "/reference_samples/" in relative)
+            or relative.endswith("contact_sheets.png")
         ]
         assert not derived, f"derived audit imagery should not be tracked: {derived}"
 
@@ -273,8 +306,7 @@ class TestRepositoryLayout:
         """``docs/archive/third-party`` is copyrighted material kept locally for reading."""
         offenders = [r for r in tracked_files() if r.startswith(VENDORED_PREFIXES)]
         assert not offenders, (
-            "third-party extracted material must stay out of version control: "
-            f"{offenders[:5]}"
+            f"third-party extracted material must stay out of version control: {offenders[:5]}"
         )
 
 
@@ -324,10 +356,11 @@ class TestDeclaredPythonFloor:
                         major_minor = tuple(int(x) for x in introduced.split("."))
                         if major_minor > floor:
                             rel = path.relative_to(REPO_ROOT).as_posix()
-                            offenders.append(f"{rel}: {needle!r} needs {introduced}, floor is {floor[0]}.{floor[1]}")
-        assert not offenders, (
-            "code uses constructs newer than the declared Python floor:\n  "
-            + "\n  ".join(offenders)
+                            offenders.append(
+                                f"{rel}: {needle!r} needs {introduced}, floor is {floor[0]}.{floor[1]}"
+                            )
+        assert not offenders, "code uses constructs newer than the declared Python floor:\n  " + "\n  ".join(
+            offenders
         )
 
     def test_the_floor_check_detects_a_too_new_construct(self):
@@ -376,12 +409,15 @@ class TestSourceIsTracked:
                 rel = path.relative_to(REPO_ROOT).as_posix()
                 result = subprocess.run(
                     ["git", "check-ignore", "--no-index", "-q", rel],
-                    cwd=REPO_ROOT, capture_output=True, check=False,
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    check=False,
                 )
                 if result.returncode == 0:
                     ignored.append(rel)
         assert not ignored, (
-            ".gitignore is excluding source files:\n  " + "\n  ".join(ignored[:20])
+            ".gitignore is excluding source files:\n  "
+            + "\n  ".join(ignored[:20])
             + "\nAnchored patterns (a leading slash) are almost always what is wanted for "
             "project-owned directories."
         )
@@ -390,13 +426,13 @@ class TestSourceIsTracked:
         """Pin the specific mistake: an unanchored pattern matching a project directory."""
         text = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
         patterns = [
-            line.strip() for line in text.splitlines()
-            if line.strip() and not line.strip().startswith("#")
+            line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")
         ]
         # Names that also occur as a directory inside the source tree.
         project_dirs = {"data", "artifacts", "outputs", "runs"}
         unanchored = [
-            pattern for pattern in patterns
+            pattern
+            for pattern in patterns
             if pattern.rstrip("/") in project_dirs and not pattern.startswith("/")
         ]
         assert not unanchored, (
@@ -412,8 +448,7 @@ class TestPreCommitHook:
     def test_the_hook_is_versioned(self):
         """A hook that only exists in .git/hooks cannot be reviewed or replicated."""
         assert (REPO_ROOT / self.HOOK).is_file(), (
-            f"{self.HOOK} is missing; the pre-commit guard would silently not exist on a "
-            "fresh clone"
+            f"{self.HOOK} is missing; the pre-commit guard would silently not exist on a fresh clone"
         )
 
     def test_the_hook_checks_the_three_guarded_properties(self):
@@ -428,7 +463,10 @@ class TestPreCommitHook:
         """``core.hooksPath`` is local config, so a clone must run the installer once."""
         result = subprocess.run(
             ["git", "config", "--local", "--get", "core.hooksPath"],
-            cwd=REPO_ROOT, capture_output=True, text=True, check=False,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         configured = result.stdout.strip()
         if not configured:
@@ -440,3 +478,64 @@ class TestPreCommitHook:
             f"core.hooksPath points at {configured!r}, not the versioned hook directory"
         )
         assert (REPO_ROOT / configured / "pre-commit").is_file()
+
+    def test_the_hook_delegates_the_scratch_check(self):
+        """The rule is unit-tested in Python; the hook must actually call it."""
+        text = (REPO_ROOT / self.HOOK).read_text(encoding="utf-8")
+        assert "tools.check_staged" in text, (
+            "the hook no longer calls tools/check_staged.py, so scratch files can be committed "
+            "again when -SkipPreflight switches the other gates off"
+        )
+
+
+class TestScratchFileGuard:
+    """``-SkipPreflight`` disables every gate except this one, so it has to be right.
+
+    It exists because a one-line scratch file named ``tmp-message-probe.txt`` was committed four
+    times and pushed while ``-SkipPreflight`` was in use, and nothing objected.
+    """
+
+    def test_the_real_regression_is_caught(self):
+        assert check_staged.is_scratch("docs/tmp-message-probe.txt"), (
+            "the exact file that reached the public remote is not detected"
+        )
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "tmp-note.txt",
+            "scratch/experiment.py",
+            "tools/tmp/helper.py",
+            "tools/probe-embedder.py",
+            "notes.md~",
+            "config.yaml.orig",
+            "data/whatever.tmp",
+            "junk",
+        ],
+    )
+    def test_temporary_shapes_are_caught(self, path):
+        assert check_staged.is_scratch(path), f"{path} should be treated as scratch"
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            # Real files in this repository that a loose substring rule would wrongly reject.
+            "tools/check_staged.py",
+            "tools/preflight.ps1",
+            "src/catface/data/manifest.py",
+            "docs/BENCHMARK.md",
+            "tests/test_repo_hygiene.py",
+            # "template" and "attempt" contain "temp" but are not temporary files.
+            "src/catface/models/embedder.py",
+            "docs/templates-report.md",
+        ],
+    )
+    def test_real_files_are_not_caught(self, path):
+        assert not check_staged.is_scratch(path), f"{path} is a legitimate file"
+
+    def test_the_guard_passes_a_clean_staged_set(self):
+        assert check_staged.check(["README.md", "src/catface/cli.py"]) == []
+
+    def test_the_current_index_is_clean(self):
+        """Whatever is staged right now must pass, or the commit is about to be refused."""
+        assert check_staged.check(check_staged.staged_paths()) == []

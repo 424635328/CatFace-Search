@@ -79,6 +79,30 @@ if [ -n "$big" ]; then
     fail=1
 fi
 
+# --- 4. scratch files -------------------------------------------------------
+# Bypassing the preflight gate with -SkipPreflight is legitimate, but it also removes the only
+# thing that noticed a temporary probe file. That is not hypothetical: a one-line scratch file
+# named "tmp-message-probe.txt" was created to exercise the sync script, swept up by its
+# "git add -A", committed four times and pushed to the public remote before anyone looked.
+# This check is independent of preflight, so the bypass no longer opens that hole.
+# The detection rule lives in tools/check_staged.py because shell is a poor place for logic that
+# needs unit tests; this hook only calls it.
+python_exe=""
+for candidate in "$PWD/.venv/Scripts/python.exe" "$PWD/.venv/bin/python" python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        python_exe="$candidate"
+        break
+    fi
+done
+
+if [ -n "$python_exe" ]; then
+    if ! "$python_exe" -m tools.check_staged; then
+        fail=1
+    fi
+else
+    echo "pre-commit: no python interpreter found, skipped the scratch-file check" >&2
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "" >&2
     echo "Commit blocked. Fix the findings, or use 'git commit --no-verify' if a finding" >&2
