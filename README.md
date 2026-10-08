@@ -166,6 +166,15 @@ python -m tools.analyze_species_recognition  # 全物种识别统计（跨物种
 python -m tools.run_benchmark_suite  # 一键跑完整基准并出报告
 ```
 
+### 推送前自检（约 100 秒，省下一整个 CI 回合）
+
+```powershell
+.\tools\preflight.ps1              # 就是 CI 的四类检查，带完全相同的 flag
+.\tools\preflight.ps1 -SkipTests   # 约 2 秒，只查 lint / 配置 / 跟踪状态
+```
+
+一次失败的 CI 要花两个来回。本仓库第一次真实 CI 运行有 3 个 job 失败，全部能在推送前本地发现——详见 [`docs/PASS-CI-FIRST-TRY.md`](docs/PASS-CI-FIRST-TRY.md)。
+
 ### 首次克隆后安装 git 守卫（一次即可）
 
 本仓库用 `git add . && git push` 同步到公开远端，因此以下三类错误一旦推送就**不可撤销**，已做成提交时自动拦截：机器特有绝对路径、凭据赋值、>5 MB 的大文件。

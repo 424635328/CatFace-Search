@@ -93,6 +93,11 @@ in a commit. This matters when reading status output: a file whose name appears 
 `.gitignore` can still show up in `git add .` as a **deletion** (`D`), which is the intended
 cleanup rather than a leak. Read the status letter, not the file name.
 
+## Before pushing
+
+`tools/preflight.ps1` runs the CI checks locally with identical flags. See
+[`PASS-CI-FIRST-TRY.md`](PASS-CI-FIRST-TRY.md) for why "close to CI" is not good enough.
+
 ## Automated checks
 
 | Layer | Runs when | Protects against |
