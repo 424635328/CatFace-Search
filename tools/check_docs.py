@@ -29,6 +29,7 @@ DOCUMENTS = (
     "docs/HYGIENE.md",
     "docs/PASS-CI-FIRST-TRY.md",
     "docs/archive/HISTORY.md",
+    "docs/diagnostics/LABEL-COLLISIONS.md",
 )
 SUFFIXES = r"py|md|json|yaml|yml|jsonl|ps1|toml|txt|csv"
 

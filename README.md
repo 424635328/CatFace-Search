@@ -29,6 +29,8 @@
 
 配对 bootstrap 显著性检验：微调 DINOv2-S 相对 ResNet-50 **+8.15 个点**（95% CI [+5.96, +10.44]，p<0.001）。嵌入耗时是 12 644 张图的总时长。
 
+> **关于 0.9682 这个数**：它按语料提供的**身份标签**计分。这份语料里有 137 对"同一张照片挂在两个标签下"，导致 503 个查询中有 5 个的判错其实是标注缺陷——它检索到的 top-1 就是自己的照片。**剔除后是 0.9781**。两个数都列出来：前者可直接与其它工作对比，后者说明模型的真实水平。证据与像素级判据见 [`docs/diagnostics/LABEL-COLLISIONS.md`](docs/diagnostics/LABEL-COLLISIONS.md)。
+
 三点值得注意：
 
 1. **21 M 的微调 DINOv2-S 比 4 倍大的 86 M 微调 DINOv2-B 还高 1.0 个点**，且嵌入快 2.2 倍、训练少 13 分钟。收益来自让训练目标与检索任务对齐（自监督优化"这是什么"，ArcFace 优化"这是哪一只"），**不是**来自模型容量——在 352 个身份的训练集上，大骨干的额外容量没被用上。
@@ -259,6 +261,8 @@ pwsh -File tools\sync.ps1 -Message "fix: ..."    # 自定义提交信息
 | 后处理调参（val 选参 / test 报告） | `python -m tools.tune_postprocess --checkpoint artifacts/train/dinov2s-arcface/best.pt` |
 | 建索引 / 查询 | `catface index --checkpoint <ckpt> --manifest <manifest> --query <img>` |
 | 审计一份新数据源（是不是猫脸） | `python -m tools.audit_species --directory <dir>` |
+| 找出识别最可靠/最差的那张图 | `python -m tools.find_best_match --checkpoint <ckpt>` |
+| 查语料里有没有跨标签的重复照片 | `python -m tools.find_duplicates --checkpoint <ckpt>` |
 | 语料统计 | `python -m tools.analyze_corpus --root <dir>` |
 | 推送前自检（省一整个 CI 回合） | `.\tools\preflight.ps1` |
 | 自检 + 同步一条龙 | `.\s.bat`（等价 `pwsh -File tools\sync.ps1`） |
@@ -315,6 +319,8 @@ python -m tools.analyze_corpus    # 语料统计（规模/分辨率/质量/物�
 python -m tools.analyze_species_recognition  # 全物种识别统计（跨物种可分性）
 python -m tools.run_benchmark_suite  # 一键跑完整基准并出报告
 python -m tools.check_docs         # 校验文档里引用的路径真实存在（防文档腐化）
+python -m tools.find_best_match    # 排名：哪张图识别最可靠 / 最自信 / 最不可靠
+python -m tools.find_duplicates    # 找出跨身份标签的重复照片（像素级验证）
 ```
 
 同步脚本 `tools/sync.ps1`（`s.bat` 调用它）按固定顺序执行：**preflight → pull → commit → push**。顺序是有意的：先验证本地树，再拉取，这样一次 pull 带来的改动不会在未检查的情况下被推出去；`commit` 时还会再过一道 pre-commit hook，与 preflight 相互独立。

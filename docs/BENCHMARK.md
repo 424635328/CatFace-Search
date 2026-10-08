@@ -25,9 +25,16 @@ the split, the score measures memorisation. The split is re-asserted at training
 (`assert_identity_disjoint`), not merely assumed.
 
 Two gallery sizes appear below and are labelled wherever they do: **full** (503 query
-identities, 12 141 gallery images) and **compact** (75 val / 76 test identities, ~1 830
+identities, 12 141 gallery images) and **compact** (75 val / 76 test identities, 1 834
 gallery images). The compact protocol is what the post-processing ablation uses, because the
 transformations are fitted on the gallery and that must be done without touching test.
+
+> The two protocols are **not** comparable. The compact one comes from
+> `data/manifests/cat_individuals_splits/test.txt` and is also what the training loop prints per
+> epoch as its held-out check; the full one takes one query per identity from the *whole*
+> manifest. Measured compact `hit@1` for the trained DINOv2-S is **0.9868**, higher than the
+> published full-protocol **0.9682** purely because the gallery is 6.6× smaller. Quoting the
+> compact number as the benchmark result would overstate it by 1.9 points.
 
 ## 2. Metric definitions
 
@@ -64,6 +71,55 @@ hit@1 with 95 % bootstrap CI: ResNet-50 `[0.8588, 0.9105]`, DINOv2-S zero-shot
 `[0.9145, 0.9543]`, DINOv2-B zero-shot `[0.9324, 0.9722]`, trained DINOv2-S `[0.9523, 0.9821]`,
 trained DINOv2-B `[0.9404, 0.9752]`. The two trained models' intervals overlap, so the 1.0-point
 gap between them is **not** established as significant by this test alone.
+
+### 3.1 这份语料的标注缺陷，以及它对 hit@1 的影响
+
+上表的数字按**标签**计分。该语料有 137 对"**同一张照片挂在两个身份标签下**"（5 组标签：
+`0455`/`0455_357`、`0077`/`0083`、`0046`/`0082`、`0314`/`0317`、`0335`/`0337`；`0455_357` 其实是
+`0455` 的子目录）。后果是 503 个查询里有 **5 个被判错，而它检索到的 top-1 就是自己的照片**——
+相似度 0.9994–0.9999，属于标注缺陷而非模型错误。
+
+| 口径 | hit@1 |
+|---|---|
+| 标签口径（上表，可直接与其它工作对比）| 0.9682 |
+| 剔除 5 个标注缺陷 | **0.9781** |
+
+**两个数都要报。** 只报 0.9781 等于把数据缺陷算成自己的成绩；只报 0.9682 而不说明，
+读者会以为 16 个错误全是模型的。完整证据、像素级判据与成因见
+[`docs/diagnostics/LABEL-COLLISIONS.md`](diagnostics/LABEL-COLLISIONS.md)。
+
+> 另注：按标签做身份不相交划分**无法**发现这类问题——`assert_identity_disjoint` 比较的是标签，
+> 不是照片。换语料时应先跑 `python -m tools.find_duplicates`。
+
+### 3.2 识别最可靠的那一张图
+
+`hit@1 = 0.9682` 是 503 个查询的**均值**，看不出分布，也回答不了"哪张图识别得最好"。
+`python -m tools.find_best_match` 把每个查询单独打分并排名（`docs/diagnostics/best-match-dinov2s.json`）。
+"最可靠"有三个不同的定义，答案不同，所以三个都报：
+
+| 口径 | 含义 | 结果 |
+|---|---|---|
+| **margin**（默认）| top-1 正确匹配 减去 最强错误身份 的差距 | 见下 |
+| sim | 单纯相似度最高（**可能是自信的错误**）| 见下 |
+| worst | 排名最末 | 见下 |
+
+**最可靠（margin 最大）**——识别毫无歧义：
+
+| | 值 |
+|---|---|
+| 查询 | `data/faces/cat_individuals__0490_0490_004.jpg.jpg`（身份 `0490`）|
+| top-1 匹配 | `cat_individuals__0490_0490_006.jpg.jpg` |
+| 相似度 | 0.9757 |
+| **margin** | **0.6308**（最强错误身份只有 0.3448）|
+| 该身份在图库中的照片数 | 18 |
+
+**最自信（sim 最高）——但它是个陷阱**：`0077_031` 与 `0083_024` 相似度 0.9999992，
+判定**错误**。原因就是 3.1 节的标注缺陷：这是同一张照片换了个标签。
+**"相似度最高"不等于"识别最准"**，这正是本工具把 margin 作为默认口径的原因。
+
+**最不可靠（margin 最小）**：`0335_002`（身份 `0335`）匹配到 `0337_016`，
+相似度 0.9996、margin **−0.4568**——同样是标注碰撞（`0335`/`0337`），
+错误身份几乎满分，而正确身份只有 0.5428。**失败案例一并列出，否则读者会以为每张图都像第一名那样。**
 
 Paired bootstrap against the baseline — the same queries are resampled for both models, which
 cancels the shared task difficulty and detects differences that independent resampling misses:
@@ -208,7 +264,7 @@ Two implications worth acting on:
 | Verification metrics (AUC / EER / TAR@FAR) | **Withdrawn, not measured.** The intended pair corpus turned out to be human faces, not cats — see `docs/diagnostics/CALFW-IS-NOT-CAT-FACES.md`. The harness supports it (`catface verify`, `tools/run_verification`); it needs a genuine cat pair set. No substitute corpus was available, so this capability remains **unverified** rather than verified-bad. |
 | Cross-dataset generalisation | **Not possible with the corpora used.** The two available corpora share no identity labels, so no positive cross-corpus pair exists and no honest number can be produced. |
 | Breed-level identity retrieval | **Withdrawn.** Oxford-IIIT Pet labels breeds (12 cat values), not individuals, so it cannot measure identity retrieval. §5 uses it for species/breed *organisation*, which is what it actually labels. |
-| Detector fine-tuning (the v1 YOLOv9 cat-face detector) | **Not done, and not currently needed.** The trained pipeline crops from annotated head boxes where the corpus provides them (Oxford) and records `detector='whole_image'` where it does not (Cat Individual Images). On the latter, whole-image framing already reaches hit@1 = 0.9682, so a detector is a possible accuracy gain rather than a blocking gap. |
+| Detector fine-tuning (the v1 YOLOv9 cat-face detector) | **Not done, and not currently needed.** The trained pipeline crops from annotated head boxes where the corpus provides them (Oxford) and records `detector='whole_image'` where it does not (Cat Individual Images). On the latter, whole-image framing already reaches hit@1 = 0.9682 (0.9781 excluding the 5 label defects of §3.1), so a detector is a possible accuracy gain rather than a blocking gap. |
 
 Stating the absences explicitly is part of the result: an unmeasured capability that is silently
 omitted reads as a passing one. The verification row is the one that matters most — it is the
