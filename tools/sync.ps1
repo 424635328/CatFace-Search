@@ -92,7 +92,9 @@ if (-not $failed) {
 if (-not $failed) {
     Write-Step "git commit"
     if (-not $Message) {
-        $Message = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+        # A bare timestamp is a useless log line; the prefix makes the automatic commits
+        # self-identifying in ``git log`` next to hand-written ones.
+        $Message = "sync $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     }
     & git commit -m $Message
     # A commit exits 1 when there is nothing to commit, which is not a failure worth stopping on.

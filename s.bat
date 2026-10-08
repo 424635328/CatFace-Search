@@ -6,6 +6,9 @@ echo The gate itself lives in tools\sync.ps1 so it is reviewable and versioned.
 echo Bypass the gate with:  pwsh -File tools\sync.ps1 -SkipPreflight
 echo.
 
+rem Forward arguments unchanged. The default commit message is built inside sync.ps1 with
+rem Get-Date, deliberately not here: cmd's %date%/%time% are locale-dependent, and assembling a
+rem message through nested backquoted `for /f` layers is fragile enough to fail confusingly.
 pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sync.ps1" %*
 set SYNC_EXIT=%ERRORLEVEL%
 
