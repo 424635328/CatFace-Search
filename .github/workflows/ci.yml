@@ -56,6 +56,8 @@ jobs:
           pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install the package and test dependencies
+        # The ``web`` extra is included so the HTTP contract is genuinely exercised in CI; the web
+        # tests skip themselves when FastAPI is absent, so a core-only install still passes.
         run: pip install -e ".[cpu,dev]"
 
       - name: Unit tests

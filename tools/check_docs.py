@@ -30,6 +30,8 @@ DOCUMENTS = (
     "docs/PASS-CI-FIRST-TRY.md",
     "docs/archive/HISTORY.md",
     "docs/diagnostics/LABEL-COLLISIONS.md",
+    "docs/RESEARCH-RETRIEVAL-LIMITS.md",
+    "docs/WEB.md",
 )
 SUFFIXES = r"py|md|json|yaml|yml|jsonl|ps1|toml|txt|csv"
 
@@ -78,6 +80,11 @@ def check_document(path: Path) -> list[str]:
     missing: list[str] = []
     for raw in sorted(references(text)):
         relative = raw.replace("\\", "/").removeprefix("./")
+        # A leading slash is an HTTP route (`/openapi.json`, `/api/status`) or an absolute path,
+        # never a repository-relative file claim. Checking it against the filesystem would flag
+        # every documented endpoint.
+        if relative.startswith("/"):
+            continue
         if any(relative.startswith(prefix) for prefix in IGNORED_PREFIXES):
             continue
         # A bare file name is usually prose, not a path claim.

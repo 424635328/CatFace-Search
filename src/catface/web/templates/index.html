@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if not status.ready %}
+<div class="notice notice-warn" role="status">
+  <strong>服务未就绪。</strong>
+  模型或图库未加载成功，<code>/api/search</code> 会返回 503。
+  用 <code>./tools/preflight.ps1</code> 检查环境，或确认 checkpoint 与 manifest 路径。
+</div>
+{% endif %}
+
+<section class="hero">
+  <h1>找出这是哪只猫</h1>
+  <p class="lede">
+    上传一张猫脸照片，系统在
+    <strong>{{ status.gallery_images or "—" }}</strong> 张图库图片、
+    <strong>{{ status.gallery_identities or "—" }}</strong> 个身份中做精确检索。
+  </p>
+  <dl class="facts">
+    <div><dt>骨干</dt><dd>{{ status.backend or "—" }}</dd></div>
+    <div><dt>描述子维度</dt><dd>{{ status.descriptor_dim or "—" }}</dd></div>
+    <div><dt>TTA</dt><dd>{{ status.tta | join(" + ") if status.tta else "—" }}</dd></div>
+    <div><dt>设备</dt><dd>{{ status.device or "—" }}</dd></div>
+  </dl>
+</section>
+
+<section class="panel">
+  <form id="search-form" class="search-form" autocomplete="off">
+    <div id="dropzone" class="dropzone" tabindex="0" role="button"
+         aria-label="选择或拖入一张猫脸照片">
+      <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" hidden>
+      <div class="dropzone-inner">
+        <div class="dropzone-icon" aria-hidden="true">＋</div>
+        <p class="dropzone-title">拖入照片，或点击选择</p>
+        <p class="dropzone-hint">JPEG / PNG / WebP / BMP，最大 12 MB</p>
+      </div>
+      <img id="preview" class="preview" alt="待检索的照片预览" hidden>
+    </div>
+
+    <div class="controls">
+      <label>
+        返回数量
+        <input type="number" id="top-k" value="10" min="1" max="50">
+      </label>
+      <label class="checkbox" title="按身份的 top-2 均值排序。实测仅 +0.0020 hit@1（503 个查询中的 1 个），与噪声无法区分。">
+        <input type="checkbox" id="identity-aggregation">
+        身份级聚合
+        <span class="muted">（实测无显著收益）</span>
+      </label>
+      <button type="submit" id="submit" class="primary">开始检索</button>
+      <button type="button" id="clear" class="ghost">清空</button>
+    </div>
+  </form>
+
+  <div id="progress" class="progress" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <span>正在嵌入并检索…首次请求会加载模型，可能较慢。</span>
+  </div>
+  <div id="error" class="notice notice-error" hidden role="alert"></div>
+</section>
+
+<section id="results" class="results" hidden>
+  <div class="verdict" id="verdict"></div>
+  <ul class="match-grid" id="match-grid"></ul>
+</section>
+
+<section class="panel limitations">
+  <h2>这个系统做不到什么</h2>
+  <p class="lede">
+    一个只展示“看起来很自信”的检索结果会误导使用者。以下是本项目的实测边界：
+  </p>
+  <div class="limitation-grid">
+    {% for item in limitations %}
+    <article class="limitation">
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.body }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

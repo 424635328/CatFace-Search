@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CatFace Search{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">🐾</span>
+      <span class="brand-text">CatFace Search</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/docs">API 文档</a>
+      <a href="/openapi.json">OpenAPI</a>
+      <span class="version">v{{ version }}</span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>
+      检索为余弦相似度的<strong>精确穷举</strong>扫描，不使用近似索引，因此报告的数字不依赖索引调参。
+      本页所有限制说明来自实测证据，不是免责声明模板。
+    </p>
+  </div>
+</footer>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>

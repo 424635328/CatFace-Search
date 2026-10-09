@@ -212,6 +212,24 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
               --query data/raw_images/mimi/new_photo.jpg --top-k 10
 ```
 
+---
+
+### 路线 D：Web 端搜索界面
+
+一个搜索页 + JSON API。默认只监听 `127.0.0.1`，因为服务没有用户体系。
+
+```powershell
+pip install -e ".[web]"
+python -m catface.web --checkpoint artifacts/train/dinov2s-arcface/best.pt `
+                      --manifest data/manifests/cat_individuals_manifest.jsonl `
+                      --device cuda
+# 打开 http://127.0.0.1:8000 ；API 文档在 /docs
+```
+
+实测（RTX 3060 Laptop）：启动后台加载 + 嵌入图库 **164 s，每进程一次**；此后单次查询
+**嵌入 32 ms + 检索 0.9 ms**。检索是 12 644 × 512 的**精确穷举**，不是近似索引——避免让报告的
+数字依赖索引调参。细节、部署注意事项与 API 契约见 [`docs/WEB.md`](docs/WEB.md)。
+
 > 加入新猫**不需要重新训练**——这是本项目的核心设计：只需重建索引。
 
 ---
@@ -269,6 +287,7 @@ pwsh -File tools\sync.ps1 -?       # 完整参数与退出码
 | 基准对照 + 显著性检验 | `python -m tools.run_benchmark_suite --protocol cat_individuals` |
 | 后处理调参（val 选参 / test 报告） | `python -m tools.tune_postprocess --checkpoint artifacts/train/dinov2s-arcface/best.pt` |
 | 建索引 / 查询 | `catface index --checkpoint <ckpt> --manifest <manifest> --query <img>` |
+| **启动 Web 搜索界面** | `python -m catface.web --device cuda` → http://127.0.0.1:8000 |
 | 审计一份新数据源（是不是猫脸） | `python -m tools.audit_species --directory <dir>` |
 | 找出识别最可靠/最差的那张图 | `python -m tools.find_best_match --checkpoint <ckpt>` |
 | 查语料里有没有跨标签的重复照片 | `python -m tools.find_duplicates --checkpoint <ckpt>` |
