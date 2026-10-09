@@ -114,14 +114,10 @@ echo   Starting the server. The model and gallery load in the background, so the
 echo   within a few seconds; it shows a "not ready" banner until the gallery finishes embedding
 echo   (~2-3 min on CUDA, longer on CPU). No refresh is needed. Stop with Ctrl+C.
 echo.
-echo   URL: http://127.0.0.1:8000
+echo   The browser opens automatically once the port answers. If port 8000 is already taken by
+echo   another program, the next free port is used and reported below - the printed URL is the
+echo   one that works, so read it if the browser did not open on the port you expected.
 echo.
-
-rem Open the browser now rather than after a delay. The server binds its port in a few seconds
-rem because the model loads in the background, and the page reports its own readiness, so an early
-rem open shows real status instead of a browser error. A `timeout /t N` delay was the first attempt
-rem and is worse in two ways: it does not help, and it fails outright when stdin is redirected.
-start "" "http://127.0.0.1:8000"
 
 "%PY%" -m catface.web --device %DEVICE% %*
 set "APP_EXIT=!ERRORLEVEL!"

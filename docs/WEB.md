@@ -20,9 +20,27 @@ python -m catface.web --checkpoint artifacts/train/dinov2s-arcface/best.pt \
 | `--manifest` | `CATFACE_MANIFEST` | `data/manifests/cat_individuals_manifest.jsonl` | 定义可检索的身份集合 |
 | `--device` | `CATFACE_DEVICE` | `cpu` | `cuda` 可显著降低首屏等待 |
 | `--image-size` | `CATFACE_IMAGE_SIZE` | `224` | **必须与 checkpoint 训练时一致** |
-| `--host` / `--port` | `CATFACE_HOST` / `CATFACE_PORT` | `127.0.0.1:8000` | |
+| `--host` / `--port` | `CATFACE_HOST` / `CATFACE_PORT` | `127.0.0.1:8000` | 端口被占用时自动顺延，见下 |
+| `--strict-port` | — | 关 | 端口被占用时**失败**而不是顺延 |
+| `--no-browser` | — | 关 | 不自动打开浏览器 |
 | `--gallery-root` | `CATFACE_GALLERY_ROOT` | 仓库根 | manifest 中相对路径的解析基准 |
 | — | `CATFACE_API_KEY` | 未设置 | 设置后 `/api/search` 需要 `X-API-Key` 或 `Authorization: Bearer` |
+
+### 端口被占用时会自动顺延
+
+`--port` 只是**首选**端口。启动时会真的尝试 bind；若失败则顺延到下一个空闲端口（最多 20 次），
+并在日志里说明：
+
+```
+WARNING  port 8000 is in use; using 8001 instead
+INFO     serving   : http://127.0.0.1:8001
+```
+
+**看日志里打印的那个 URL**，它才是可用的。需要精确端口时用 `--strict-port`，此时占用就直接失败。
+
+> 为什么不是"检测端口上有没有东西在响应"：本机 8000 被 Incredibuild Manager 占用，它的监听
+> **会应答 TCP 并返回 HTTP 502**——"有响应"看起来像成功，而我们自己的 bind 其实是失败的
+> （`WinError 10013`）。只有真的 bind 才能预测 uvicorn 能否启动。
 
 ## 2. 实测性能（本机 RTX 3060 Laptop，DINOv2-S + ArcFace）
 

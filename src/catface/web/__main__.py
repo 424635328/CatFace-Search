@@ -64,7 +64,17 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("CATFACE_HOST", "127.0.0.1"),
         help="bind address; the default is loopback, not 0.0.0.0",
     )
-    parser.add_argument("--port", type=int, default=int(os.environ.get("CATFACE_PORT", "8000")))
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("CATFACE_PORT", "8000")),
+        help="port to serve on; if it is busy the next free port is used unless --strict-port is set",
+    )
+    parser.add_argument(
+        "--strict-port",
+        action="store_true",
+        help="fail instead of moving to another port when --port is already in use",
+    )
     parser.add_argument(
         "--gallery-root",
         default=os.environ.get("CATFACE_GALLERY_ROOT"),
@@ -121,6 +131,17 @@ def main(argv: list[str] | None = None) -> int:
     LOGGER.info("manifest  : %s", manifest)
     LOGGER.info("device    : %s at %d px", args.device, args.image_size)
 
+    # Resolve the port before doing anything else, and report the one actually used. A busy default
+    # port is a normal condition on a developer machine — on this one, port 8000 is held by another
+    # product whose listener answers TCP with an HTTP 502, so a browser shows a gateway error and our
+    # own bind fails. Refusing to start over that would make the launcher useless exactly where it is
+    # meant to be convenient.
+    port = _choose_port(args.host, args.port, args.strict_port)
+    if port is None:
+        return 66
+    args.port = port
+    LOGGER.info("serving   : http://%s:%d", args.host, port)
+
     service = SearchService(
         checkpoint=checkpoint,
         manifest=manifest,
@@ -133,17 +154,66 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_browser:
         # Wait for the application to answer, then open the page. A fixed delay is wrong in both
         # directions: too short and the user gets "connection refused" before the socket is bound,
-        # too long and they wait for nothing. Since the model now loads in the background, the port
-        # binds almost immediately and this returns as soon as /healthz responds.
+        # too long and they wait for nothing. Since the model loads in the background, the port binds
+        # almost immediately and this returns as soon as /healthz responds. The URL uses the resolved
+        # port, not the requested one.
+        url = f"http://{args.host}:{port}"
         watcher = threading.Thread(
-            target=_open_browser_when_serving,
-            args=(args.host, args.port, f"http://{args.host}:{args.port}"),
-            daemon=True,
+            target=_open_browser_when_serving, args=(args.host, port, url), daemon=True
         )
         watcher.start()
 
     uvicorn.run(app, host=args.host, port=args.port, reload=args.reload, log_level="info")
     return 0
+
+
+def _port_is_free(host: str, port: int) -> bool:
+    """Whether ``port`` can be bound on ``host`` right now.
+
+    Tries the real bind rather than a heuristic. A common alternative — checking whether something
+    answers on the port — misses the case that actually bit here: another program (Incredibuild's
+    Manager, in this environment) held 8000 and answered TCP, but with an HTTP 502, so "something
+    responded" looked like success while our own bind failed with WinError 10013.
+    """
+    import socket
+
+    probe_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+    # getaddrinfo picks the right family so this works for IPv4 and IPv6 hosts alike.
+    try:
+        infos = socket.getaddrinfo(probe_host, port, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    for family, socktype, proto, _canonical, address in infos:
+        with socket.socket(family, socktype, proto) as probe:
+            # No SO_REUSEADDR on purpose: on Windows it would let this probe succeed against a port
+            # another process is already listening on, which is exactly the situation to detect.
+            try:
+                probe.bind(address)
+            except OSError:
+                continue
+            return True
+    return False
+
+
+def _choose_port(host: str, preferred: int, strict: bool, attempts: int = 20) -> int | None:
+    """Return a bindable port, preferring ``preferred``.
+
+    Being unable to bind should not be a dead end for a one-click launcher: any other program on the
+    machine can hold the default port, and making the user diagnose that is a poor trade for
+    determinism that nobody asked for. ``--strict-port`` restores the strict behaviour for anything
+    scripted that depends on the exact port.
+    """
+    for offset in range(attempts):
+        candidate = preferred + offset
+        if _port_is_free(host, candidate):
+            if offset:
+                LOGGER.warning("port %d is in use; using %d instead", preferred, candidate)
+            return candidate
+        if strict:
+            LOGGER.error("port %d is already in use (--strict-port given); not moving", preferred)
+            return None
+    LOGGER.error("no free port in %d..%d", preferred, preferred + attempts - 1)
+    return None
 
 
 def _open_browser_when_serving(host: str, port: int, url: str, timeout_s: float = 120.0) -> None:
