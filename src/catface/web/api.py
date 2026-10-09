@@ -16,6 +16,8 @@ Design rules this file follows
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
 import shutil
 import tempfile
@@ -143,23 +145,43 @@ def create_app(service: SearchService | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        """Load the model once per process, on startup.
+        """Bind the port immediately and load the model in the background.
 
-        A lifespan handler rather than the deprecated ``on_event`` hook: the handler form is what
-        the installed FastAPI supports without a deprecation warning, and it scopes the load to the
-        process instead of to a request.
+        Loading inside the lifespan *before* yielding would block uvicorn from binding the socket
+        for the whole model load (measured: ~164 s here). A browser opened at any point during that
+        window gets "connection refused" rather than the application, and an orchestrator's first
+        probes fail the same way. Yielding first makes the process reachable at once: ``/healthz``
+        answers, ``/api/status`` reports ``ready: false``, and ``/api/search`` returns 503 until the
+        model is up. The readiness signal stays in the payload where a client can read it.
+
+        The load runs in a worker thread because it is synchronous torch work — embedding the whole
+        gallery — and running it on the event loop would stall every request rather than just the
+        searches that depend on it.
         """
         instance: SearchService | None = getattr(application.state, "service", None)
         if instance is None:
             LOGGER.warning("no SearchService configured; /api/search will return 503")
-        else:
+            yield
+            return
+
+        async def load_model() -> None:
             try:
-                instance.load()
+                # to_thread keeps the event loop free: the embedding job is minutes of CPU/GPU work.
+                await asyncio.to_thread(instance.load)
+                LOGGER.info("model ready; /api/search is accepting requests")
             except CatFaceError as error:
                 # Report and keep serving: /healthz stays up so an orchestrator can tell "the
                 # process is dead" from "the model is not loadable", and /api/status says which.
                 LOGGER.error("model failed to load, service is not ready: %s", error)
-        yield
+
+        task = asyncio.create_task(load_model())
+        try:
+            yield
+        finally:
+            if not task.done():
+                task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
 
     app = FastAPI(
         title="CatFace Search",
@@ -232,6 +254,8 @@ def create_app(service: SearchService | None = None) -> FastAPI:
         _api_key_guard(request)
         instance = require_service()
 
+        # Validate the request before waiting on the model. Rejecting a bad upload only after a
+        # multi-minute load would make an obvious client error look like a timeout.
         suffix = Path(file.filename or "query").suffix.lower()
         if suffix not in ALLOWED_IMAGE_SUFFIXES:
             raise HTTPException(
@@ -258,6 +282,17 @@ def create_app(service: SearchService | None = None) -> FastAPI:
             if written == 0:
                 raise HTTPException(status_code=400, detail="the uploaded file is empty")
             await file.close()
+
+            # Report readiness immediately rather than waiting for the load. Waiting looks harmless
+            # in a unit test and is wrong against a real client: the request would hold its
+            # connection open for the whole multi-minute load, so a browser or reverse proxy times
+            # out and the caller cannot tell "still loading" from "broken". A fast 503 with a pointer
+            # to /api/status is honest, and the page already shows the readiness banner.
+            if not instance.ready:
+                raise HTTPException(
+                    status_code=503,
+                    detail="the model is still loading, or failed to load; see /api/status",
+                )
 
             try:
                 outcome = instance.search(target, top_k=top_k, identity_aggregation=identity_aggregation)

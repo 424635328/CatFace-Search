@@ -229,6 +229,10 @@ class SearchService:
         exposed because it is the better-motivated rule, and labelled as not demonstrably better.
         """
         if not self.ready:
+            # A cold service is loaded here only when nothing else is already loading it. If the HTTP
+            # layer registered a background task, the request handler awaits that task instead of
+            # reaching this branch, because calling this from the event loop blocks every other
+            # request for the whole load.
             self.load()
         # Bind the two attributes that ``load`` guarantees, so the rest of this method reads them
         # from locals: it removes the need for assertions that a type checker cannot be told about,

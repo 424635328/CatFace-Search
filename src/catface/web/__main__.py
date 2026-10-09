@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import threading
 from pathlib import Path
 
 from ..logging_utils import configure_utf8_console, get_logger
@@ -28,7 +29,8 @@ def _missing_dependency(error: ImportError) -> int:
         f"(import failed with: {error})",
         file=sys.stderr,
     )
-    return 3
+    # 69 (EX_UNAVAILABLE) rather than 3, matching the launcher's "dependency missing" code.
+    return 69
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("CATFACE_GALLERY_ROOT"),
         help="root that manifest image paths are relative to, for serving thumbnails",
     )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="do not open a browser window; use for a headless or scripted start",
+    )
     parser.add_argument("--reload", action="store_true", help="auto-reload on source changes")
     args = parser.parse_args(argv)
 
@@ -103,7 +110,10 @@ def main(argv: list[str] | None = None) -> int:
             "Build the gallery:    python -m catface.cli prepare --source cat_individuals",
             file=sys.stderr,
         )
-        return 2
+        # 66 rather than 2: argparse already uses 2 for a usage error, and a launcher that prints
+        # "2 = a path was wrong" would then mislabel every mistyped flag. Keeping these distinct is
+        # what makes the codes usable by a caller instead of decorative.
+        return 66
 
     gallery_root = Path(args.gallery_root).resolve() if args.gallery_root else REPO_ROOT
 
@@ -119,8 +129,49 @@ def main(argv: list[str] | None = None) -> int:
         gallery_root=gallery_root,
     )
     app = create_app(service)
+
+    if not args.no_browser:
+        # Wait for the application to answer, then open the page. A fixed delay is wrong in both
+        # directions: too short and the user gets "connection refused" before the socket is bound,
+        # too long and they wait for nothing. Since the model now loads in the background, the port
+        # binds almost immediately and this returns as soon as /healthz responds.
+        watcher = threading.Thread(
+            target=_open_browser_when_serving,
+            args=(args.host, args.port, f"http://{args.host}:{args.port}"),
+            daemon=True,
+        )
+        watcher.start()
+
     uvicorn.run(app, host=args.host, port=args.port, reload=args.reload, log_level="info")
     return 0
+
+
+def _open_browser_when_serving(host: str, port: int, url: str, timeout_s: float = 120.0) -> None:
+    """Open ``url`` once the server accepts connections.
+
+    Polls the liveness endpoint rather than sleeping a fixed amount, because the page states its own
+    readiness: opening it as soon as the socket is up shows the real banner ("not ready, model
+    loading") instead of a browser error page, and no refresh is needed afterwards.
+    """
+    import time
+    import urllib.error
+    import urllib.request
+    import webbrowser
+
+    # 127.0.0.1 rather than the possibly-0.0.0.0 bind address: the latter is not a valid destination.
+    probe_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://{probe_host}:{port}/healthz", timeout=2) as reply:
+                if reply.status == 200:
+                    break
+        except (urllib.error.URLError, OSError):
+            time.sleep(0.3)
+    else:
+        LOGGER.warning("server did not answer within %.0fs; open %s manually", timeout_s, url)
+        return
+    webbrowser.open(url)
 
 
 if __name__ == "__main__":

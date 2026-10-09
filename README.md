@@ -216,7 +216,16 @@ catface index --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 
 ### 路线 D：Web 端搜索界面
 
-一个搜索页 + JSON API。默认只监听 `127.0.0.1`，因为服务没有用户体系。
+一个搜索页 + JSON API。**双击根目录的 `start_web.bat` 即可启动**——它先检查虚拟环境、web 依赖、
+checkpoint 与图库清单，缺哪一样就说清哪一样，然后开服务并打开浏览器。
+
+```powershell
+.\start_web.bat                              # 双击等价
+.\start_web.bat --port 8080 --no-browser     # 换端口 / 不自动开浏览器
+.\start_web.bat --device cpu                 # 强制 CPU（可用时默认走 CUDA）
+```
+
+手动启动（等价）：
 
 ```powershell
 pip install -e ".[web]"
@@ -226,9 +235,13 @@ python -m catface.web --checkpoint artifacts/train/dinov2s-arcface/best.pt `
 # 打开 http://127.0.0.1:8000 ；API 文档在 /docs
 ```
 
-实测（RTX 3060 Laptop）：启动后台加载 + 嵌入图库 **164 s，每进程一次**；此后单次查询
-**嵌入 32 ms + 检索 0.9 ms**。检索是 12 644 × 512 的**精确穷举**，不是近似索引——避免让报告的
-数字依赖索引调参。细节、部署注意事项与 API 契约见 [`docs/WEB.md`](docs/WEB.md)。
+**模型与图库在后台加载**，所以端口几秒内就可访问：页面显示"未就绪"横幅直到图库嵌入完成
+（实测 CUDA 约 2–3 分钟），无需刷新；就绪前检索返回 503 而非挂起。就绪后单次查询
+**嵌入 32 ms + 检索 0.9 ms**。检索是 12 644 × 512 的**精确穷举**而非近似索引——避免让报告的数字
+依赖索引调参。
+
+退出码：`0` 正常 / `2` 参数错误 / `66` 路径错误 / `69` 缺依赖 / `64` 缺 PowerShell 7。
+细节、容器化部署与 API 契约见 [`docs/WEB.md`](docs/WEB.md)。
 
 > 加入新猫**不需要重新训练**——这是本项目的核心设计：只需重建索引。
 
@@ -287,7 +300,7 @@ pwsh -File tools\sync.ps1 -?       # 完整参数与退出码
 | 基准对照 + 显著性检验 | `python -m tools.run_benchmark_suite --protocol cat_individuals` |
 | 后处理调参（val 选参 / test 报告） | `python -m tools.tune_postprocess --checkpoint artifacts/train/dinov2s-arcface/best.pt` |
 | 建索引 / 查询 | `catface index --checkpoint <ckpt> --manifest <manifest> --query <img>` |
-| **启动 Web 搜索界面** | `python -m catface.web --device cuda` → http://127.0.0.1:8000 |
+| **启动 Web 搜索界面** | 双击 `start_web.bat`，或 `python -m catface.web --device cuda` → http://127.0.0.1:8000 |
 | 审计一份新数据源（是不是猫脸） | `python -m tools.audit_species --directory <dir>` |
 | 找出识别最可靠/最差的那张图 | `python -m tools.find_best_match --checkpoint <ckpt>` |
 | 查语料里有没有跨标签的重复照片 | `python -m tools.find_duplicates --checkpoint <ckpt>` |
