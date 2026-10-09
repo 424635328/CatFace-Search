@@ -1,0 +1,74 @@
+{
+  "checkpoint": "artifacts/train/dinov2s-arcface/best.pt",
+  "verified_pairs": 137,
+  "merged_labels": {
+    "0083": "0077",
+    "0082": "0046",
+    "0455_357": "0455",
+    "0337": "0335",
+    "0317": "0314"
+  },
+  "as_published": {
+    "hit@1": 0.9681908548707754,
+    "hit@5": 0.9880715705765407,
+    "hit@10": 0.9900596421471173,
+    "mRR": 0.976398575718523,
+    "mAP": 0.9000266765688361,
+    "mINP": 0.7685754607782592,
+    "queries": 503.0
+  },
+  "corrected": {
+    "hit@1": 0.9781312127236581,
+    "hit@5": 0.9880715705765407,
+    "hit@10": 0.9900596421471173,
+    "mRR": 0.9820314451684898,
+    "mAP": 0.9013872285723363,
+    "mINP": 0.7669726442126944,
+    "queries": 503.0
+  },
+  "delta": {
+    "hit@1": 0.00994,
+    "hit@5": 0.0,
+    "mINP": -0.001603,
+    "mAP": 0.001361,
+    "mRR": 0.005633
+  },
+  "queries_changed": [
+    {
+      "query_id": "cat_individuals:0077/0077_031.JPG",
+      "label_as_published": "0077",
+      "label_corrected": "0077",
+      "correct_as_published": false,
+      "correct_corrected": true
+    },
+    {
+      "query_id": "cat_individuals:0083/0083_002.JPG",
+      "label_as_published": "0083",
+      "label_corrected": "0077",
+      "correct_as_published": false,
+      "correct_corrected": true
+    },
+    {
+      "query_id": "cat_individuals:0335/0335_002.jpg",
+      "label_as_published": "0335",
+      "label_corrected": "0335",
+      "correct_as_published": false,
+      "correct_corrected": true
+    },
+    {
+      "query_id": "cat_individuals:0455/0455_201.jpg",
+      "label_as_published": "0455",
+      "label_corrected": "0455",
+      "correct_as_published": false,
+      "correct_corrected": true
+    },
+    {
+      "query_id": "cat_individuals:0455/0455_357/IMG_0791.jpg",
+      "label_as_published": "0455_357",
+      "label_corrected": "0455",
+      "correct_as_published": false,
+      "correct_corrected": true
+    }
+  ],
+  "unit_of_measure": 0.0019880715705765406
+}

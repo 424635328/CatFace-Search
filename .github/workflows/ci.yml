@@ -117,3 +117,47 @@ jobs:
                   print(f"FAIL {path}: {exc}")
           sys.exit(1 if failures else 0)
           PY
+
+  container:
+    name: container image builds
+    runs-on: ubuntu-latest
+    # The image is what a deployment actually runs, and it is exactly the artifact a static check
+    # cannot verify: Dockerfile syntax, layer ordering, and whether the runtime stage really has the
+    # package importable are only settled by a build. The static check in tools/check_container.py
+    # catches COPY/ignore contradictions quickly and on every machine; this job is the authority.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate the compose file
+        run: docker compose config --quiet
+
+      - name: Build the runtime image
+        run: docker build --target runtime --tag catface-search:ci .
+
+      - name: The built image can start and answer a liveness probe
+        # Starting the service without a checkpoint is the interesting case: the entry point must
+        # refuse with an explanatory message rather than bind a port it cannot serve from. Asserting
+        # the refusal is stronger than asserting nothing, because it pins the fail-fast behaviour.
+        run: |
+          set +e
+          output=$(docker run --rm catface-search:ci 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::the entry point reported success with no checkpoint configured"
+            exit 1
+          fi
+          echo "$output" | grep -q "checkpoint not found" || {
+            echo "::error::missing checkpoint did not produce the expected diagnostic"
+            exit 1
+          }
+
+      - name: The image must not contain a checkpoint or the corpus
+        run: |
+          if docker run --rm --entrypoint sh catface-search:ci -c \
+              'find / -name "*.pt" -o -name "cat_individuals_manifest.jsonl" | grep -q .'; then
+            echo "::error::weights or the manifest were baked into the image instead of mounted"
+            exit 1
+          fi
+          echo "no weights or corpus in the image"

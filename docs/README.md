@@ -36,6 +36,7 @@ These are the raw outputs behind the claims, kept because a summary is not evide
 | [`diagnostics/multiscale-fusion.json`](diagnostics/multiscale-fusion.json) | 224 px and 280 px descriptors alone and fused, with the mINP gain that is the one significant improvement. |
 | [`diagnostics/linear-probe-ceiling.json`](diagnostics/linear-probe-ceiling.json) | The ridge probe on held-out identities: the evidence that no linear reweighting improves this descriptor. |
 | [`diagnostics/pseudo-label-audit.json`](diagnostics/pseudo-label-audit.json) | Pseudo-label purity and coverage curves, including the finding that k-NN consensus is worse than plain top-1 here. |
+| [`diagnostics/corrected-labels.json`](diagnostics/corrected-labels.json) | The benchmark recomputed with the five colliding labels merged: which five queries flip and by how much. |
 | [`data-findings.json`](data-findings.json) | Machine-readable record of what each dataset actually labels. |
 
 ## Archive
