@@ -125,3 +125,56 @@ class TestShippedContainerConfiguration:
             "the service has no user management; publishing it on all interfaces by default is not "
             "a safe default"
         )
+
+
+class TestContainerCiJob:
+    """The CI job that actually builds the image, checked for the failure mode that already bit.
+
+    Inside a double-quoted YAML scalar, an escaped quote collapses to a plain one, which silently
+    split the find expression into separate arguments; ``sh -c`` then failed with "find: missing
+    argument to -size". The workflow file looked correct when read. These assertions read the
+    *parsed* YAML, which is what the runner sees, so the same mistake cannot pass review again.
+    """
+
+    @staticmethod
+    def _runs() -> list[str]:
+        import yaml
+
+        workflow = yaml.safe_load(
+            (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        return [step["run"] for step in workflow["jobs"]["container"]["steps"] if "run" in step]
+
+    def test_the_job_builds_the_image(self):
+        assert any("docker build" in text for text in self._runs()), (
+            "without a build the job asserts nothing about the Dockerfile"
+        )
+
+    def test_the_compose_file_is_validated(self):
+        assert any("docker compose config" in text for text in self._runs())
+
+    def test_missing_checkpoint_is_asserted_to_fail_fast(self):
+        """Asserting the refusal is stronger than asserting nothing: it pins the diagnostic."""
+        assert any("checkpoint not found" in text for text in self._runs())
+
+    def test_the_weights_assertion_is_size_based_and_correctly_quoted(self):
+        find_step = next((text for text in self._runs() if "offenders=" in text), None)
+        assert find_step is not None, "the weights assertion is missing from the job"
+
+        assert "'find" in find_step, (
+            "the sh -c command must be single-quoted: a double-quoted YAML scalar unescapes the "
+            "quote and splits the find expression into separate arguments"
+        )
+        assert '-c "find' not in find_step, "the sh -c command is double-quoted"
+
+        for predicate in ("-xdev", "-type f", "-size +10240k", "-name"):
+            assert predicate in find_step, f"the find expression lost {predicate!r}"
+        assert "-size +" in find_step, (
+            "the assertion must be size-based: a bare name match cannot tell a 1 KB library fixture "
+            "from an 86 MB checkpoint"
+        )
+        assert find_step.count(r"\(") == 1 and find_step.count(r"\)") == 1, (
+            "the -name alternatives need exactly one group, or the size filter applies to the wrong "
+            "part of the expression"
+        )
+        assert "find /" in find_step, "the scan must target the container filesystem root"

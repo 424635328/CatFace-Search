@@ -158,6 +158,11 @@ jobs:
         # 1 KB library fixture from an 86 MB checkpoint, so it would fail for the wrong reason and,
         # worse, could pass while a checkpoint sat in a layer under another name. What matters is
         # that no large artifact was baked in: weights and the manifest are mounted at run time.
+        #
+        # Single quotes around the shell command, not double: inside a double-quoted YAML scalar the
+        # escaped \" collapses to ", which silently splits the find expression into separate
+        # arguments and makes sh -c fail with "find: missing argument to -size". YAML does not
+        # process single quotes, so the command reaches the shell intact.
         run: |
           offenders=$(docker run --rm --entrypoint sh catface-search:ci -c \
             'find / -xdev -type f -size +10240k \( -name "*.pt" -o -name "*.pth" -o -name "*.pkl" -o -name "*manifest*.jsonl" \) 2>/dev/null')
