@@ -1,0 +1,54 @@
+# Keep the build context small and free of anything that should not enter an image layer.
+#
+# Two independent reasons, not just speed:
+#   * ``data/`` and ``artifacts/`` hold the corpus, the trained checkpoints and the descriptor cache,
+#     which is gigabytes. They are mounted at run time instead, so baking them in would make the
+#     image enormous and couple model updates to code releases.
+#   * ``.git/`` carries the full history, and ``.kaggle/`` and any ``.env`` would carry credentials.
+#     A layer is forever, so the exclusion has to happen here rather than downstream.
+
+# version control and credentials
+.git
+.gitattributes
+.gitignore
+.github
+.kaggle
+.env
+.env.*
+
+# corpora, checkpoints, caches, generated reports
+data/
+artifacts/
+outputs/
+runs/
+pretrained_models/
+*.pt
+*.pth
+*.pkl
+*.onnx
+*.zip
+*.tar
+*.gz
+
+# local environments and tooling state
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# documentation and editor state: the runtime image does not read them, and docs/archive holds
+# third-party material that must not be redistributed inside an image.
+docs/archive/
+*.md
+!README.md
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini

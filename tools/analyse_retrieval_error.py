@@ -28,6 +28,62 @@ from tools.embedding_cache import DEFAULT_CACHE_DIR, cache_key, load
 from tools.retrieval_research import l2_normalize
 
 
+def random_ranking_expectation(similarity: np.ndarray, relevant: np.ndarray, edges: list[int]) -> list[float]:
+    """Expected queries per rank bucket if the ranking were uniformly random.
+
+    For a query with ``m`` relevant gallery items among ``G``, the best relevant rank under a random
+    permutation of the gallery follows the hypergeometric law. The survival form used here is
+
+        P(best rank > t) = C(G - m, t) / C(G, t) = prod_{i=0}^{t-1} (G - m - i) / (G - i),
+
+    evaluated as a running product. The binomial form is mathematically identical but numerically
+    hopeless: ``comb(12141, t)`` materialises integers with thousands of digits and the first version
+    of this function timed out at ten minutes. The product form is exact in floating point for these
+    magnitudes, where the result underflows to zero long before precision matters.
+
+    The expected count of the best relevant rank landing exactly at ``t`` is the drop between
+    consecutive survivals; summing over queries gives the count a random ranking would produce.
+
+    This exists because an observed count is uninterpretable without a null: "four queries had the
+    right answer at rank 2" is only meaningful next to how many chance alone would put there.
+    """
+    total = similarity.shape[1]
+    expected = [0.0] * (len(edges) + 1)
+    # Only buckets up to the largest edge are enumerated individually; everything beyond lands in
+    # the final bucket. ``contributing`` counts the queries that actually carry probability, which
+    # is what the final top-up below must be based on (see the note there).
+    largest_edge = max(edges)
+    contributing = 0
+    for row in range(similarity.shape[0]):
+        m = int(relevant[row].sum())
+        if m <= 0:
+            continue
+        contributing += 1
+        expected[0] += m / total  # P(best rank == 1) = m / G
+        survival = 1.0
+        for rank in range(1, largest_edge + 1):
+            survival *= (total - m - rank + 1) / (total - rank + 1)
+            if survival <= 0.0:
+                break
+            # P(best rank == rank + 1) = P(> rank) - P(> rank + 1); the next survival is folded in
+            # on the following iteration, so the drop is bucketed lazily here.
+            next_survival = survival * (total - m - rank) / (total - rank)
+            probability = survival - next_survival
+            if probability <= 0.0:
+                continue
+            position = rank + 1
+            for bucket, edge in enumerate(edges):
+                if position <= edge:
+                    expected[bucket] += probability
+                    break
+    # Every contributing query's bucketed probabilities sum to 1, so topping up by the number of
+    # contributing queries puts the remainder (probability beyond the largest edge) in the final
+    # bucket. Tallying the query count instead would inject a phantom query for every unanswerable
+    # one — the first version of this did that, and a test caught it.
+    expected[-1] += float(contributing) - sum(expected)
+    return expected
+
+
 def analyse(
     similarity: np.ndarray,
     query_labels: list[str],
@@ -39,6 +95,10 @@ def analyse(
     labels_query = np.asarray(query_labels)
     labels_gallery = np.asarray(gallery_labels)
     relevant = labels_query[:, None] == labels_gallery[None, :]
+
+    # The bucket edges the histogram below uses, shared with the random-ranking expectation so the
+    # two are directly comparable.
+    edges = [1, 2, 5, 10, 50]
 
     # Rank of the best correct match per query (1 = top-1 already correct).
     masked = np.where(relevant, similarity, -np.inf)
@@ -85,12 +145,23 @@ def analyse(
         )
 
     margins_correct = (best_correct - best_wrong)[correct]
+    expected_random = random_ranking_expectation(similarity, relevant, edges)
+    observed = [
+        buckets[name]
+        for name in ("rank 1 (correct)", "rank 2", "rank 3-5", "rank 6-10", "rank 11-50", "rank >50")
+    ]
+    enrichment = [
+        (round(obs / exp, 2) if exp > 1e-9 else None) for obs, exp in zip(observed, expected_random)
+    ]
     return {
         "queries": int(similarity.shape[0]),
         "correct": int(correct.sum()),
         "errors": int((~correct).sum()),
         "errors_that_are_label_collisions": collision_count,
         "rank_of_best_correct_histogram": dict(buckets),
+        "rank_buckets_observed": observed,
+        "rank_buckets_expected_if_random": [round(value, 2) for value in expected_random],
+        "rank_bucket_enrichment_over_random": enrichment,
         "errors_detail": detail,
         "margin_correct": {
             "min": float(margins_correct.min()),
@@ -157,10 +228,17 @@ def main(argv: list[str] | None = None) -> int:
         f"  genuinely wrong                : {report['errors'] - report['errors_that_are_label_collisions']}"
     )
     print()
-    print("rank of the best correct match (how much a re-ranker could recover):")
-    for name in ("rank 1 (correct)", "rank 2", "rank 3-5", "rank 6-10", "rank 11-50", "rank >50"):
-        if name in report["rank_of_best_correct_histogram"]:
-            print(f"   {name:<20} {report['rank_of_best_correct_histogram'][name]}")
+    print("rank of the best correct match, against the random-ranking null:")
+    print(f"   {'bucket':<20}{'observed':>10}{'if random':>12}{'enrichment':>12}")
+    names = ("rank 1 (correct)", "rank 2", "rank 3-5", "rank 6-10", "rank 11-50", "rank >50")
+    for name, obs, exp, ratio in zip(
+        names,
+        report["rank_buckets_observed"],
+        report["rank_buckets_expected_if_random"],
+        report["rank_bucket_enrichment_over_random"],
+    ):
+        shown = "n/a" if ratio is None else f"{ratio:.1f}x"
+        print(f"   {name:<20}{obs:>10}{exp:>12.2f}{shown:>12}")
     print()
     print(
         f"margin on correct queries  median={report['margin_correct']['median']:.4f} "

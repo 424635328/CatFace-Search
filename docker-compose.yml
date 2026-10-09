@@ -1,0 +1,51 @@
+# Local deployment of the search service.
+#
+#   docker compose up --build
+#   open http://127.0.0.1:8000
+#
+# The model and the gallery manifest are mounted read-only rather than baked into the image, so a
+# checkpoint can be replaced and the service restarted without rebuilding anything:
+#
+#   CATFACE_CHECKPOINT=artifacts/train/dinov2b-arcface/best.pt docker compose up -d
+#
+# Note the published port is bound to 127.0.0.1. The service has no user management, so exposing it
+# on a network without setting CATFACE_API_KEY and terminating TLS in front of it is not supported.
+
+services:
+  search:
+    build:
+      context: .
+      target: runtime
+    image: catface-search:local
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      # Relative paths are resolved against the repository root inside the image, so mounting under
+      # /data and pointing the variables at absolute paths is the explicit form.
+      CATFACE_CHECKPOINT: /data/best.pt
+      CATFACE_MANIFEST: /data/manifest.jsonl
+      CATFACE_GALLERY_ROOT: /gallery
+      CATFACE_DEVICE: cpu
+      CATFACE_IMAGE_SIZE: "224"
+      # Set this to require an API key on /api/search. Left unset, the endpoint is open, which is
+      # intended for a laptop and not for anything reachable.
+      # CATFACE_API_KEY: change-me
+    volumes:
+      - ./artifacts/train/dinov2s-arcface/best.pt:/data/best.pt:ro
+      - ./data/manifests/cat_individuals_manifest.jsonl:/data/manifest.jsonl:ro
+      # Read-only gallery so result thumbnails resolve. Without it the API still answers; the images
+      # just 404, which the UI reports per tile rather than failing the whole search.
+      - ./data/faces:/gallery:ro
+    # The model load takes ~164 s on the reference machine, so the container must be given time to
+    # become ready before an orchestrator concludes it failed.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped

@@ -11,6 +11,30 @@
     "rank >50": 1,
     "rank 6-10": 1
   },
+  "rank_buckets_observed": [
+    487,
+    4,
+    6,
+    1,
+    4,
+    1
+  ],
+  "rank_buckets_expected_if_random": [
+    1.0,
+    1.0,
+    2.97,
+    4.89,
+    36.61,
+    456.52
+  ],
+  "rank_bucket_enrichment_over_random": [
+    487.0,
+    4.01,
+    2.02,
+    0.2,
+    0.11,
+    0.0
+  ],
   "errors_detail": [
     {
       "query_id": "cat_individuals:0077/0077_031.JPG",

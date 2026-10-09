@@ -83,7 +83,48 @@ python -m catface.web --checkpoint artifacts/train/dinov2s-arcface/best.pt \
 前端是服务端渲染 + 原生 JS，**无构建步骤**：一个没有工具链的 checkout 也能直接跑，
 且 JS 失败时降级为可读静态页而不是白屏。
 
-## 7. 测试
+## 7. 容器化部署
+
+```bash
+docker compose up --build          # 打开 http://127.0.0.1:8000
+```
+
+**模型与图库是挂载进去的，不打进镜像**：86 MB 权重和 25 MB 清单与代码的变更节奏无关，
+把模型烧进镜像意味着"回滚模型必须连服务一起回滚"。替换 checkpoint 只需换挂载：
+
+```bash
+CATFACE_CHECKPOINT=artifacts/train/dinov2b-arcface/best.pt docker compose up -d
+```
+
+镜像设计上的几个有意选择：
+
+| 选择 | 原因 |
+|---|---|
+| 多阶段构建（build → runtime） | 最终镜像不含编译工具链，既是体积也是攻击面 |
+| CPU-only torch（`--index-url …/cpu`） | 默认 wheel 会拉进数 GB 的 CUDA 库而这个镜像用不到；GPU 部署应从 `nvidia/cuda` 基础镜像起 |
+| 非 root 用户 `catface` | 能写自己代码的容器，在被利用后就是可改的容器 |
+| `HEALTHCHECK` 打 `/healthz` | 该端点**不触碰模型**；用 `/api/status` 会在约 164 s 的模型加载期间把健康容器反复重启 |
+| `.dockerignore` 排除 `data/`、`artifacts/`、`.git`、`.kaggle` | 构建上下文从 **27 GB 降到 5.4 MB**；且 `.git` 含完整历史、`.kaggle` 含凭据，而镜像层是永久的 |
+| 默认只发布 `127.0.0.1:8000` | 服务没有用户体系，默认开到公网不是安全默认值 |
+
+### 未构建镜像——这一点必须说清楚
+
+**本机没有 Docker（`docker` 不在 PATH 上），因此镜像从未被构建过**，本项目也不声称构建通过。
+在没有守护进程的前提下能验证的，是"会让构建失败或悄悄发布错东西"的那一类问题，
+由 `tools/check_container.py` 覆盖（并作为 `tests/test_container.py` 运行）：
+
+- 每个本地 `COPY` 源都存在，且没有被 `.dockerignore` 排除（最常见的构建失败原因）；
+- 每个 `COPY --from=<stage>` 都指向已声明的 stage；
+- compose 的 `build.target` 在 Dockerfile 中存在；
+- entry point 模块可导入（容器内执行的就是这条命令）；
+- 权重与语料没有被打进镜像；
+- 健康检查用的是存活端点而非就绪端点。
+
+这是**静态检查，不是构建的替代**。`.dockerignore` 的匹配语义是**保守近似**——真实 Docker 实现
+会覆盖它；写这套近似时用正反例测出并修掉了两个自己的 bug（尾斜杠模式漏掉目录本身、
+把路径里的 `!` 当成否定符）。
+
+## 8. 测试
 
 ```bash
 pytest tests/test_web.py -q
