@@ -195,9 +195,7 @@ def load_oiid_entries(annotations_dir: str | Path, species: str = "cat") -> list
     if mismatched:
         LOGGER.warning("%d XML files declared an unexpected object name", mismatched)
     distinct = len({entry.identity for entry in entries})
-    LOGGER.info(
-        "OIID %s: %d images, %d distinct identities", species, len(entries), distinct
-    )
+    LOGGER.info("OIID %s: %d images, %d distinct identities", species, len(entries), distinct)
     return sorted(entries, key=lambda e: e.image_id)
 
 
@@ -240,8 +238,7 @@ def load_parquet_pairs(path: str | Path, limit: int | None = None) -> list[PairR
         import pyarrow.parquet as pq
     except ImportError as exc:  # pragma: no cover - dependency is declared
         raise DataError(
-            "pyarrow is required to read verification pairs; install it with "
-            "`pip install pyarrow`"
+            "pyarrow is required to read verification pairs; install it with `pip install pyarrow`"
         ) from exc
 
     source = Path(path)

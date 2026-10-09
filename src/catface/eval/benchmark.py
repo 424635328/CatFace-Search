@@ -130,9 +130,7 @@ def _embed_split(
     """Embed a set of records; returns vectors, ids, elapsed seconds and warnings."""
     paths = [record.path for record in records]
     started = time.perf_counter()
-    result = embed_records(
-        embedder, paths, image_size=image_size, batch_size=batch_size
-    )
+    result = embed_records(embedder, paths, image_size=image_size, batch_size=batch_size)
     elapsed = time.perf_counter() - started
     return result.vectors, result.ids, elapsed, result.disagreed
 
@@ -231,21 +229,16 @@ def benchmark_configuration(
             f"queries and {len(gallery_ids)}/{split.num_gallery} gallery images"
         )
 
-    q, g, diagnostics = apply_postprocessing(
-        query_vectors, gallery_vectors, postprocess, seed=seed
-    )
+    q, g, diagnostics = apply_postprocessing(query_vectors, gallery_vectors, postprocess, seed=seed)
     if diagnostics.get("query_dim") != diagnostics.get("gallery_dim"):
         raise BenchmarkError(
-            f"Query and gallery descriptors have different widths after "
-            f"post-processing: {diagnostics}"
+            f"Query and gallery descriptors have different widths after post-processing: {diagnostics}"
         )
 
     similarity = (q @ g.T).astype(np.float32)
     # Recompute the self-mask against the ids actually embedded, so a filtered
     # gallery cannot leave stale True entries pointing at the wrong column.
-    self_mask = np.array(
-        [[qid == gid for gid in gallery_ids] for qid in query_ids], dtype=bool
-    )
+    self_mask = np.array([[qid == gid for gid in gallery_ids] for qid in query_ids], dtype=bool)
 
     retrieval = evaluate_retrieval(
         similarity,
@@ -325,11 +318,13 @@ def compare_configurations(
         if candidate.name == baseline.name or candidate.vectors is None:
             continue
         if candidate.vectors.shape != baseline.vectors.shape:
-            comparisons.append({
-                "candidate": candidate.name,
-                "baseline": baseline.name,
-                "error": "similarity matrices differ in shape; paired test not applicable",
-            })
+            comparisons.append(
+                {
+                    "candidate": candidate.name,
+                    "baseline": baseline.name,
+                    "error": "similarity matrices differ in shape; paired test not applicable",
+                }
+            )
             continue
         stats = paired_bootstrap_delta(
             candidate.vectors,
@@ -340,11 +335,13 @@ def compare_configurations(
             samples=samples,
             seed=seed,
         )
-        comparisons.append({
-            "candidate": candidate.name,
-            "baseline": baseline.name,
-            **stats,
-        })
+        comparisons.append(
+            {
+                "candidate": candidate.name,
+                "baseline": baseline.name,
+                **stats,
+            }
+        )
     return comparisons
 
 
@@ -406,9 +403,13 @@ def render_markdown_summary(
     #   hit@k      how often a same-identity image is in the top k  (CMC / top-k accuracy)
     #   fullR@k    what share of that identity's gallery images are in the top k
     #   AP@k       ranking quality, averaged over the relevant items inside the top k
-    header = ["Configuration", "dim"] + [f"hit@{k}" for k in ks] + \
-             [f"fullR@{k}" for k in ks] + [f"AP@{k}" for k in ks] + \
-             ["mINP", "mRR", "emb_s", "imgs"]
+    header = (
+        ["Configuration", "dim"]
+        + [f"hit@{k}" for k in ks]
+        + [f"fullR@{k}" for k in ks]
+        + [f"AP@{k}" for k in ks]
+        + ["mINP", "mRR", "emb_s", "imgs"]
+    )
     lines.append("| " + " | ".join(header) + " |")
     lines.append("|" + "---|" * len(header))
     for result in results:
@@ -467,10 +468,7 @@ def render_markdown_summary(
         lines.append("| --- | --- | --- | --- | --- |")
         for entry in comparisons:
             if "error" in entry:
-                lines.append(
-                    f"| {entry['candidate']} | {entry['baseline']} | n/a | n/a | "
-                    f"{entry['error']} |"
-                )
+                lines.append(f"| {entry['candidate']} | {entry['baseline']} | n/a | n/a | {entry['error']} |")
                 continue
             ci = entry["ci95"]
             lines.append(

@@ -34,21 +34,46 @@ from catface.train.loop import (
 from test_training import synthetic_records
 
 
-def build(tmp_path, epochs: int = 3, identities: int = 6, per_identity: int = 4,
-          output: str = "run", seed: int = 1337, patience: int = 0):
+def build(
+    tmp_path,
+    epochs: int = 3,
+    identities: int = 6,
+    per_identity: int = 4,
+    output: str = "run",
+    seed: int = 1337,
+    patience: int = 0,
+):
     """A small CPU trainer plus the pieces needed to rebuild it identically."""
     records = synthetic_records(tmp_path, identities=identities, per_identity=per_identity)
     val_split = build_identity_split(records, queries_per_identity=1, seed=0, name="val")
     config = TrainConfigResolved(
-        epochs=epochs, batch_size=4, lr=1e-3, identities_per_batch=2, samples_per_identity=2,
-        val_every=1, num_workers=0, image_size=32, output_dir=tmp_path / output,
-        amp=False, warmup_epochs=0, triplet_weight=0.3, early_stop_patience=patience,
-        seed=seed, fingerprint="test-fingerprint",
+        epochs=epochs,
+        batch_size=4,
+        lr=1e-3,
+        identities_per_batch=2,
+        samples_per_identity=2,
+        val_every=1,
+        num_workers=0,
+        image_size=32,
+        output_dir=tmp_path / output,
+        amp=False,
+        warmup_epochs=0,
+        triplet_weight=0.3,
+        early_stop_patience=patience,
+        seed=seed,
+        fingerprint="test-fingerprint",
     )
     embedder = Embedder(
-        EmbedderConfig(backbone="timm", timm_name="resnet10t.c3_in1k", embedding_dim=16,
-                       pooling="gap", head="arcface", image_size=32),
-        num_classes=identities, device="cpu",
+        EmbedderConfig(
+            backbone="timm",
+            timm_name="resnet10t.c3_in1k",
+            embedding_dim=16,
+            pooling="gap",
+            head="arcface",
+            image_size=32,
+        ),
+        num_classes=identities,
+        device="cpu",
     )
     trainer = Trainer(embedder, records, val_split, config, device="cpu")
     return records, val_split, config, trainer
@@ -91,9 +116,7 @@ class TestCheckpointing:
         _, _, _, trainer = build(tmp_path, epochs=2)
         history = trainer.fit(handle_signals=False)
         assert history.pause_reason is None
-        payload = json.loads(
-            (tmp_path / "run" / "training_history.json").read_text(encoding="utf-8")
-        )
+        payload = json.loads((tmp_path / "run" / "training_history.json").read_text(encoding="utf-8"))
         assert payload["pause_reason"] is None
         assert payload["version"] == 2
 
@@ -106,9 +129,9 @@ class TestResumeFaithfulness:
         _, _, _, second = build(tmp_path, epochs=3)
         second.load_state()
         for key, value in first.embedder.state_dict().items():
-            assert torch.allclose(
-                second.embedder.state_dict()[key].float(), value.float(), atol=1e-6
-            ), f"weight {key} differs after resume"
+            assert torch.allclose(second.embedder.state_dict()[key].float(), value.float(), atol=1e-6), (
+                f"weight {key} differs after resume"
+            )
 
     def test_resume_restores_optimiser_moments(self, tmp_path):
         """Momentum is the state that, if lost, changes the trajectory silently."""
@@ -122,9 +145,9 @@ class TestResumeFaithfulness:
         for index in first_state["state"]:
             for key, value in first_state["state"][index].items():
                 if torch.is_tensor(value):
-                    assert torch.allclose(
-                        second_state["state"][index][key].float(), value.float()
-                    ), f"optimiser state[{index}][{key}] differs"
+                    assert torch.allclose(second_state["state"][index][key].float(), value.float()), (
+                        f"optimiser state[{index}][{key}] differs"
+                    )
 
     def test_resume_continues_at_the_next_epoch(self, tmp_path):
         _, _, _, first = build(tmp_path, epochs=1)
@@ -205,7 +228,7 @@ class TestPauseMechanisms:
         top of the loop is what stops a long epoch from overrunning the window.
         """
         _, _, _, trainer = build(tmp_path, epochs=5)
-        trainer._budget_deadline = time.perf_counter() - 1.0      # already spent
+        trainer._budget_deadline = time.perf_counter() - 1.0  # already spent
         history = trainer.fit(handle_signals=False)
         assert history.pause_reason == "time-budget"
         assert history.epochs == [], "an epoch started despite an exhausted budget"
@@ -229,7 +252,7 @@ class TestPauseMechanisms:
         reproducibility this feature exists to protect.
         """
         _, _, _, trainer = build(tmp_path, epochs=1)
-        trainer.fit(handle_signals=False)          # best epoch == 1, latest == 1
+        trainer.fit(handle_signals=False)  # best epoch == 1, latest == 1
         latest = {k: v.detach().clone() for k, v in trainer.embedder.state_dict().items()}
 
         paused = build(tmp_path, epochs=3, output="run")[3]
@@ -239,9 +262,9 @@ class TestPauseMechanisms:
         paused.request_pause("keep-latest")
         paused.fit(handle_signals=False)
         for key, value in latest.items():
-            assert torch.allclose(
-                paused.embedder.state_dict()[key].float(), value.float(), atol=1e-6
-            ), "pausing restored the best weights instead of the latest ones"
+            assert torch.allclose(paused.embedder.state_dict()[key].float(), value.float(), atol=1e-6), (
+                "pausing restored the best weights instead of the latest ones"
+            )
 
     def test_first_pause_reason_wins(self, tmp_path):
         _, _, _, trainer = build(tmp_path, epochs=2)
@@ -254,9 +277,9 @@ class TestPauseMechanisms:
         trainer.fit(handle_signals=False)
         assert trainer.best_state is not None
         for key, value in trainer.best_state.items():
-            assert torch.allclose(
-                trainer.embedder.state_dict()[key].float(), value.float(), atol=1e-5
-            ), "a completed run must leave the validated weights in place"
+            assert torch.allclose(trainer.embedder.state_dict()[key].float(), value.float(), atol=1e-5), (
+                "a completed run must leave the validated weights in place"
+            )
 
 
 class TestLoadStateValidation:
@@ -304,16 +327,32 @@ class TestWrapper:
         records = synthetic_records(tmp_path, identities=6, per_identity=4)
         val_split = build_identity_split(records, queries_per_identity=1, seed=0, name="val")
         settings = {
-            "epochs": 2, "batch_size": 4, "lr": 1e-3, "identities_per_batch": 2, "samples_per_identity": 2,
-            "val_every": 1, "num_workers": 0, "image_size": 32, "output_dir": tmp_path / "wrap",
-            "amp": False, "warmup_epochs": 0, "early_stop_patience": 0,
+            "epochs": 2,
+            "batch_size": 4,
+            "lr": 1e-3,
+            "identities_per_batch": 2,
+            "samples_per_identity": 2,
+            "val_every": 1,
+            "num_workers": 0,
+            "image_size": 32,
+            "output_dir": tmp_path / "wrap",
+            "amp": False,
+            "warmup_epochs": 0,
+            "early_stop_patience": 0,
         }
         settings.update(overrides)
         config = TrainConfigResolved(**settings)
         embedder = Embedder(
-            EmbedderConfig(backbone="timm", timm_name="resnet10t.c3_in1k", embedding_dim=16,
-                           pooling="gap", head="arcface", image_size=32),
-            num_classes=6, device="cpu",
+            EmbedderConfig(
+                backbone="timm",
+                timm_name="resnet10t.c3_in1k",
+                embedding_dim=16,
+                pooling="gap",
+                head="arcface",
+                image_size=32,
+            ),
+            num_classes=6,
+            device="cpu",
         )
         return records, val_split, config, embedder
 
@@ -328,21 +367,30 @@ class TestWrapper:
 
     def test_wrapper_resume_continues_the_run(self, tmp_path):
         records, val_split, config, embedder = self._args(tmp_path, epochs=1)
-        train_metric_learner(embedder, records, val_split, config, device="cpu",
-                             handle_signals=False)
+        train_metric_learner(embedder, records, val_split, config, device="cpu", handle_signals=False)
 
         records2, val_split2, config2, embedder2 = self._args(tmp_path, epochs=3)
         history, _ = train_metric_learner(
-            embedder2, records2, val_split2, config2, device="cpu",
-            resume=True, handle_signals=False,
+            embedder2,
+            records2,
+            val_split2,
+            config2,
+            device="cpu",
+            resume=True,
+            handle_signals=False,
         )
         assert [r.epoch for r in history.epochs] == [1, 2, 3]
 
     def test_wrapper_warns_when_resume_finds_nothing(self, tmp_path, caplog):
         records, val_split, config, embedder = self._args(tmp_path)
         history, _ = train_metric_learner(
-            embedder, records, val_split, config, device="cpu",
-            resume=True, handle_signals=False,
+            embedder,
+            records,
+            val_split,
+            config,
+            device="cpu",
+            resume=True,
+            handle_signals=False,
         )
         # It must still train rather than fail, and the run starts from epoch 1.
         assert [r.epoch for r in history.epochs] == [1, 2]

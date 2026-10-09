@@ -87,8 +87,9 @@ def l2_normalize(matrix: np.ndarray, eps: float = 1e-12) -> np.ndarray:
     return array / np.maximum(norm, eps)
 
 
-def retrieval_metrics(similarity: np.ndarray, query_labels: list[str],
-                      gallery_labels: list[str]) -> dict[str, float]:
+def retrieval_metrics(
+    similarity: np.ndarray, query_labels: list[str], gallery_labels: list[str]
+) -> dict[str, float]:
     """CMC hit@k, mINP, mAP over all relevant gallery items, mRR.
 
     ``hit@k`` is the share of queries whose top-k contains at least one same-identity image.
@@ -150,8 +151,9 @@ def _knn(similarity: np.ndarray, k: int, exclude_self: bool) -> np.ndarray:
     return np.take_along_axis(top, np.argsort(-ordered, axis=1, kind="stable"), axis=1)
 
 
-def score_kreciprocal(query: np.ndarray, gallery: np.ndarray, k1: int = 20,
-                      k2: int = 6, lambda_value: float = 0.3) -> np.ndarray:
+def score_kreciprocal(
+    query: np.ndarray, gallery: np.ndarray, k1: int = 20, k2: int = 6, lambda_value: float = 0.3
+) -> np.ndarray:
     """k-reciprocal Jaccard re-ranking (Zhong et al., CVPR 2017).
 
     The probe and the gallery are treated as one symmetric graph for neighbourhood purposes:
@@ -209,7 +211,7 @@ def score_kreciprocal(query: np.ndarray, gallery: np.ndarray, k1: int = 20,
     gallery_sizes = gallery_membership.sum(axis=1)
 
     intersection = probe_membership @ gallery_membership.T
-    union = (probe_membership.sum(axis=1)[:, None] + gallery_sizes[None, :] - intersection)
+    union = probe_membership.sum(axis=1)[:, None] + gallery_sizes[None, :] - intersection
     jaccard = intersection / np.maximum(union, 1e-12)
 
     # The final score blends the original cosine with the Jaccard distance, which keeps direct
@@ -217,8 +219,14 @@ def score_kreciprocal(query: np.ndarray, gallery: np.ndarray, k1: int = 20,
     return (similarity_qg + lambda_value * jaccard).astype(np.float32)
 
 
-def score_diffusion(query: np.ndarray, gallery: np.ndarray, alpha: float = 0.9,
-                    steps: int = 20, k_graph: int = 12, tol: float = 1e-6) -> np.ndarray:
+def score_diffusion(
+    query: np.ndarray,
+    gallery: np.ndarray,
+    alpha: float = 0.9,
+    steps: int = 20,
+    k_graph: int = 12,
+    tol: float = 1e-6,
+) -> np.ndarray:
     """Manifold ranking by random walk with restart over the gallery similarity graph.
 
     Solves ``f* = alpha S f* + (1 - alpha) y`` by iteration; the closed form
@@ -277,25 +285,31 @@ def score_diffusion(query: np.ndarray, gallery: np.ndarray, alpha: float = 0.9,
 METHODS = ("baseline", "kreciprocal", "diffusion")
 
 
-def build_protocol(config_path: str, manifest_override: str | None,
-                   queries_per_identity: int, seed: int):
+def build_protocol(config_path: str, manifest_override: str | None, queries_per_identity: int, seed: int):
     config = load_config(config_path)
-    manifest_path = Path(manifest_override) if manifest_override else (
-        Path(config.data.manifest) / "cat_individuals_manifest.jsonl")
+    manifest_path = (
+        Path(manifest_override)
+        if manifest_override
+        else (Path(config.data.manifest) / "cat_individuals_manifest.jsonl")
+    )
     if not manifest_path.is_file():
         raise CatFaceError(f"manifest missing at {manifest_path}")
     records = list(Manifest.load(manifest_path))
-    split = build_within_split(records, queries_per_identity=queries_per_identity,
-                              name="cat_individuals", seed=seed)
+    split = build_within_split(
+        records, queries_per_identity=queries_per_identity, name="cat_individuals", seed=seed
+    )
     return records, split
 
 
-def embed_split(embedder: Embedder, records, split, image_size: int,
-                views: Sequence[str] | None = None) -> dict:
-    query = embed_records(embedder, [r.path for r in split.query_records],
-                          image_size=image_size, batch_size=32, views=views)
-    gallery = embed_records(embedder, [r.path for r in split.gallery_records],
-                            image_size=image_size, batch_size=32, views=views)
+def embed_split(
+    embedder: Embedder, records, split, image_size: int, views: Sequence[str] | None = None
+) -> dict:
+    query = embed_records(
+        embedder, [r.path for r in split.query_records], image_size=image_size, batch_size=32, views=views
+    )
+    gallery = embed_records(
+        embedder, [r.path for r in split.gallery_records], image_size=image_size, batch_size=32, views=views
+    )
     return {
         "query": np.asarray(query.vectors, dtype=np.float32),
         "gallery": np.asarray(gallery.vectors, dtype=np.float32),
@@ -319,11 +333,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--device", default=None)
     parser.add_argument("--methods", default="baseline,kreciprocal,diffusion")
-    parser.add_argument("--views", default="identity,hflip",
-                        help="TTA views, comma-separated; identity,hflip,scale_112 is available")
+    parser.add_argument(
+        "--views",
+        default="identity,hflip",
+        help="TTA views, comma-separated; identity,hflip,scale_112 is available",
+    )
     parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE_DIR))
-    parser.add_argument("--force-embed", action="store_true",
-                        help="ignore the cache and re-encode")
+    parser.add_argument("--force-embed", action="store_true", help="ignore the cache and re-encode")
     parser.add_argument("--k1", type=int, default=20, help="k-reciprocal primary neighbourhood")
     parser.add_argument("--k2", type=int, default=6, help="k-reciprocal expansion neighbourhood")
     parser.add_argument("--alpha", type=float, default=0.9, help="diffusion restart complement")
@@ -332,15 +348,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
 
-    records, split = build_protocol(args.config, args.manifest,
-                                    args.queries_per_identity, args.seed)
+    records, split = build_protocol(args.config, args.manifest, args.queries_per_identity, args.seed)
 
     views = tuple(name.strip() for name in args.views.split(",") if name.strip())
-    manifest_for_key = Path(args.manifest) if args.manifest else (
-        Path(load_config(args.config).data.manifest) / "cat_individuals_manifest.jsonl")
+    manifest_for_key = (
+        Path(args.manifest)
+        if args.manifest
+        else (Path(load_config(args.config).data.manifest) / "cat_individuals_manifest.jsonl")
+    )
     key = cache_key(
-        args.checkpoint, manifest_for_key,
-        protocol="cat_individuals", image_size=args.image_size, tta=views,
+        args.checkpoint,
+        manifest_for_key,
+        protocol="cat_individuals",
+        image_size=args.image_size,
+        tta=views,
         extra={"queries_per_identity": args.queries_per_identity, "seed": args.seed},
     )
 
@@ -349,12 +370,15 @@ def main(argv: list[str] | None = None) -> int:
         LOGGER.info("loaded %s (backbone=%s)", args.checkpoint, embedder.config.backbone)
         return embed_split(embedder, records, split, args.image_size, views)
 
-    payload, cached = load_or_embed(key, producer, directory=args.cache_dir,
-                                    force=args.force_embed)
-    LOGGER.info("descriptors %s (cache key %s, dim %d, %d queries / %d gallery)",
-                "loaded from cache" if cached else "freshly embedded",
-                key, payload["query"].shape[1], payload["query"].shape[0],
-                payload["gallery"].shape[0])
+    payload, cached = load_or_embed(key, producer, directory=args.cache_dir, force=args.force_embed)
+    LOGGER.info(
+        "descriptors %s (cache key %s, dim %d, %d queries / %d gallery)",
+        "loaded from cache" if cached else "freshly embedded",
+        key,
+        payload["query"].shape[1],
+        payload["query"].shape[0],
+        payload["gallery"].shape[0],
+    )
 
     wanted = [name.strip() for name in args.methods.split(",") if name.strip()]
     results: list[dict] = []
@@ -365,18 +389,24 @@ def main(argv: list[str] | None = None) -> int:
         if name == "baseline":
             similarity = score_baseline(payload["query"], payload["gallery"])
         elif name == "kreciprocal":
-            similarity = score_kreciprocal(payload["query"], payload["gallery"],
-                                           k1=args.k1, k2=args.k2)
+            similarity = score_kreciprocal(payload["query"], payload["gallery"], k1=args.k1, k2=args.k2)
         else:
-            similarity = score_diffusion(payload["query"], payload["gallery"],
-                                         alpha=args.alpha, steps=args.steps,
-                                         k_graph=args.k_graph)
+            similarity = score_diffusion(
+                payload["query"], payload["gallery"], alpha=args.alpha, steps=args.steps, k_graph=args.k_graph
+            )
         elapsed = time.perf_counter() - started
         metrics = retrieval_metrics(similarity, payload["query_labels"], payload["gallery_labels"])
         results.append({"method": name, "seconds": round(elapsed, 2), **metrics})
-        LOGGER.info("%-13s hit@1=%.4f hit@5=%.4f mINP=%.4f mAP=%.4f mRR=%.4f  (%.1fs)",
-                    name, metrics["hit@1"], metrics["hit@5"], metrics["mINP"],
-                    metrics["mAP"], metrics["mRR"], elapsed)
+        LOGGER.info(
+            "%-13s hit@1=%.4f hit@5=%.4f mINP=%.4f mAP=%.4f mRR=%.4f  (%.1fs)",
+            name,
+            metrics["hit@1"],
+            metrics["hit@5"],
+            metrics["mINP"],
+            metrics["mAP"],
+            metrics["mRR"],
+            elapsed,
+        )
 
     base = next((row for row in results if row["method"] == "baseline"), None)
     print()
@@ -387,21 +417,39 @@ def main(argv: list[str] | None = None) -> int:
         delta = ""
         if base and row["method"] != "baseline":
             delta = f"   (Δhit@1 {row['hit@1'] - base['hit@1']:+.4f})"
-        print(f"{row['method']:<14}{row['hit@1']:>8.4f}{row['hit@5']:>8.4f}"
-              f"{row['mINP']:>8.4f}{row['mAP']:>8.4f}{row['mRR']:>8.4f}{row['seconds']:>7.1f}{delta}")
+        print(
+            f"{row['method']:<14}{row['hit@1']:>8.4f}{row['hit@5']:>8.4f}"
+            f"{row['mINP']:>8.4f}{row['mAP']:>8.4f}{row['mRR']:>8.4f}{row['seconds']:>7.1f}{delta}"
+        )
 
     if args.out:
         out_path = Path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps({
-            "checkpoint": args.checkpoint, "cache_key": key, "cached": cached,
-            "protocol": {"queries": int(payload["query"].shape[0]),
-                         "gallery": int(payload["gallery"].shape[0]),
-                         "dim": int(payload["query"].shape[1])},
-            "params": {"k1": args.k1, "k2": args.k2, "alpha": args.alpha,
-                       "steps": args.steps, "k_graph": args.k_graph},
-            "results": results,
-        }, indent=2, ensure_ascii=False), encoding="utf-8")
+        out_path.write_text(
+            json.dumps(
+                {
+                    "checkpoint": args.checkpoint,
+                    "cache_key": key,
+                    "cached": cached,
+                    "protocol": {
+                        "queries": int(payload["query"].shape[0]),
+                        "gallery": int(payload["gallery"].shape[0]),
+                        "dim": int(payload["query"].shape[1]),
+                    },
+                    "params": {
+                        "k1": args.k1,
+                        "k2": args.k2,
+                        "alpha": args.alpha,
+                        "steps": args.steps,
+                        "k_graph": args.k_graph,
+                    },
+                    "results": results,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         print(f"\nwritten to {out_path}")
     return 0
 

@@ -29,9 +29,7 @@ def make_record(
     source: str = "test",
     **kwargs,
 ) -> FaceRecord:
-    return FaceRecord(
-        image_id=image_id, path=path, source=source, identity=identity, **kwargs
-    )
+    return FaceRecord(image_id=image_id, path=path, source=source, identity=identity, **kwargs)
 
 
 class TestFaceRecord:
@@ -236,8 +234,10 @@ class TestProtocol:
 
     def test_gallery_cap_is_respected(self):
         split = build_identity_split(
-            self._records(per_identity=10), queries_per_identity=1,
-            max_gallery_per_identity=3, seed=5,
+            self._records(per_identity=10),
+            queries_per_identity=1,
+            max_gallery_per_identity=3,
+            seed=5,
         )
         assert split.num_gallery == 30
 

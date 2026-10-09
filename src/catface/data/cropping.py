@@ -231,9 +231,7 @@ def alignment_affine(
     source = np.asarray(source_landmarks, dtype=np.float32).reshape(-1, 2)
     target = np.asarray(target_landmarks, dtype=np.float32).reshape(-1, 2)
     if source.shape != target.shape:
-        raise DataError(
-            f"Landmark sets differ in shape: {source.shape} vs {target.shape}"
-        )
+        raise DataError(f"Landmark sets differ in shape: {source.shape} vs {target.shape}")
     if source.shape[0] < 3:
         raise DataError("At least 3 landmark pairs are required for a similarity transform")
 

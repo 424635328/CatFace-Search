@@ -187,8 +187,7 @@ class MetricHead:
         return {f"head.{k}": v for k, v in self.module.state_dict().items()}
 
     def load_state_dict(self, state: dict[str, Any], strict: bool = False) -> None:
-        inner = {k.split("head.", 1)[1] if k.startswith("head.") else k: v
-                 for k, v in state.items()}
+        inner = {k.split("head.", 1)[1] if k.startswith("head.") else k: v for k, v in state.items()}
         self.module.load_state_dict(inner, strict=strict)
 
 

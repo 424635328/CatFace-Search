@@ -135,7 +135,7 @@ class TestQuality:
         flat = np.full((32, 32), 128, dtype=np.uint8)
         signals = measure_quality(flat)
         flags = quality_flags(signals)
-        assert "blurry" in flags          # a flat image has ~zero Laplacian variance
+        assert "blurry" in flags  # a flat image has ~zero Laplacian variance
         assert "low_contrast" in flags
         assert "underexposed" not in flags
 
@@ -163,7 +163,7 @@ class TestAlignment:
         source = np.array([[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [10.0, 10.0]])
         target = source + np.array([5.0, -3.0])
         matrix = alignment_affine(source, target)
-        moved = (matrix @ np.vstack([source.T, np.ones(4)]))
+        moved = matrix @ np.vstack([source.T, np.ones(4)])
         assert np.allclose(moved, target.T, atol=1e-3)
 
     def test_landmark_count_mismatch_is_rejected(self):
@@ -179,7 +179,7 @@ class TestAlignment:
         rng = np.random.default_rng(3)
         source = rng.uniform(0, 100, size=(20, 2)).astype(np.float32)
         target = source + np.array([12.0, -7.0], dtype=np.float32)
-        target[5] += np.array([40.0, 40.0], dtype=np.float32)   # 1 bad landmark
+        target[5] += np.array([40.0, 40.0], dtype=np.float32)  # 1 bad landmark
         target[13] += np.array([-30.0, 25.0], dtype=np.float32)  # another bad one
         matrix = alignment_affine(source, target)
         # The transform must describe the translation the inliers share.
@@ -213,9 +213,7 @@ class TestAnnotationParsers:
     def test_list_parser_reads_four_columns(self, tmp_path):
         path = tmp_path / "list.txt"
         path.write_text(
-            "#Image CLASS-ID SPECIES BREED ID\n"
-            "Abyssinian_1 1 1 1\n"
-            "newfoundland_1 27 2 12\n",
+            "#Image CLASS-ID SPECIES BREED ID\nAbyssinian_1 1 1 1\nnewfoundland_1 27 2 12\n",
             encoding="utf-8",
         )
         rows = parse_oiid_list(path)

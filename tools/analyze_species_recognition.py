@@ -79,12 +79,15 @@ def oxford_records(image_dir: Path, limit_per_species: int | None = None) -> lis
         rows = kept
     LOGGER.info(
         "Oxford corpus: %d images (%s)",
-        len(rows), ", ".join(f"{k}={v}" for k, v in sorted(Counter(r[1] for r in rows).items())),
+        len(rows),
+        ", ".join(f"{k}={v}" for k, v in sorted(Counter(r[1] for r in rows).items())),
     )
     return rows
 
 
-def embed_all(embedder: Embedder, rows: list[tuple[str, str, str]], batch_size: int) -> tuple[np.ndarray, list[str], list[str]]:
+def embed_all(
+    embedder: Embedder, rows: list[tuple[str, str, str]], batch_size: int
+) -> tuple[np.ndarray, list[str], list[str]]:
     """Embed every image, preserving order and dropping unreadable files consistently."""
     result = embed_records(embedder, [r[0] for r in rows], batch_size=batch_size)
     if result.vectors.size == 0:
@@ -93,9 +96,7 @@ def embed_all(embedder: Embedder, rows: list[tuple[str, str, str]], batch_size: 
     # ``embed_records`` may skip unreadable files, so re-align the labels to what it returned.
     aligned = [row for row in rows if row[0] in kept_index]
     if len(aligned) != len(result.ids):
-        raise CatFaceError(
-            f"label/vector mismatch: {len(aligned)} labels for {len(result.ids)} vectors"
-        )
+        raise CatFaceError(f"label/vector mismatch: {len(aligned)} labels for {len(result.ids)} vectors")
     return (
         result.vectors,
         [row[1] for row in aligned],
@@ -103,9 +104,7 @@ def embed_all(embedder: Embedder, rows: list[tuple[str, str, str]], batch_size: 
     )
 
 
-def nearest_neighbour_accuracy(
-    vectors: np.ndarray, labels: list[str], exclude_self: bool = True
-) -> dict:
+def nearest_neighbour_accuracy(vectors: np.ndarray, labels: list[str], exclude_self: bool = True) -> dict:
     """Leave-one-out 1-NN accuracy over the given label set."""
     similarity = vectors @ vectors.T
     if exclude_self:
@@ -144,9 +143,7 @@ def linear_probe(vectors: np.ndarray, labels: list[str], folds: int = 5) -> dict
     if min(counts.values()) < folds:
         return {"skipped": f"smallest class has {min(counts.values())} items, need >= {folds}"}
     splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=1337)
-    scores = cross_val_score(
-        LogisticRegression(max_iter=2000, C=1.0), vectors, values, cv=splitter, n_jobs=1
-    )
+    scores = cross_val_score(LogisticRegression(max_iter=2000, C=1.0), vectors, values, cv=splitter, n_jobs=1)
     return {
         "accuracy_mean": round(float(scores.mean()), 4),
         "accuracy_std": round(float(scores.std()), 4),
@@ -217,17 +214,26 @@ def main(argv: list[str] | None = None) -> int:
     configure_utf8_console()
     parser = argparse.ArgumentParser(description="All-species recognition statistics")
     parser.add_argument("--data-root", default="data")
-    parser.add_argument("--checkpoints", nargs="+", required=True,
-                        help="Checkpoint paths. An entry may be 'label=path'.")
-    parser.add_argument("--backbone", default="dinov2_vits14",
-                        help="Backbone used when --include-untrained is set")
-    parser.add_argument("--include-untrained", action="store_true",
-                        help="Also measure a freshly initialised head, to separate "
-                             "'the backbone already did this' from 'training preserved it'")
+    parser.add_argument(
+        "--checkpoints", nargs="+", required=True, help="Checkpoint paths. An entry may be 'label=path'."
+    )
+    parser.add_argument(
+        "--backbone", default="dinov2_vits14", help="Backbone used when --include-untrained is set"
+    )
+    parser.add_argument(
+        "--include-untrained",
+        action="store_true",
+        help="Also measure a freshly initialised head, to separate "
+        "'the backbone already did this' from 'training preserved it'",
+    )
     parser.add_argument("--limit-per-species", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--breed-sample", type=int, default=3000,
-                        help="Images used for the breed-level statistic (it is not the focus)")
+    parser.add_argument(
+        "--breed-sample",
+        type=int,
+        default=3000,
+        help="Images used for the breed-level statistic (it is not the focus)",
+    )
     parser.add_argument("--device", default=None)
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
@@ -247,11 +253,15 @@ def main(argv: list[str] | None = None) -> int:
         reference = models[0][1]
         untrained = Embedder(
             EmbedderConfig(
-                backbone=args.backbone, embedding_dim=reference.config.embedding_dim,
-                pooling="auto", head="linear", image_size=reference.config.image_size,
+                backbone=args.backbone,
+                embedding_dim=reference.config.embedding_dim,
+                pooling="auto",
+                head="linear",
+                image_size=reference.config.image_size,
                 tta=reference.config.tta,
             ),
-            num_classes=0, device=args.device or "cuda",
+            num_classes=0,
+            device=args.device or "cuda",
         )
         untrained.eval()
         models.append((f"untrained-head-{args.backbone}", untrained))
@@ -271,16 +281,12 @@ def main(argv: list[str] | None = None) -> int:
     for label, embedder in models:
         started = time.perf_counter()
         LOGGER.info("=== %s: species-level statistics ===", label)
-        species_report = evaluate_model(
-            embedder, rows, args.batch_size, label_key=1, include_probe=True
-        )
+        species_report = evaluate_model(embedder, rows, args.batch_size, label_key=1, include_probe=True)
         # Breed level uses a bounded sample: it is a secondary statistic and the full corpus
         # would triple the cost for a number nobody acts on.
         breed_rows = rows[: args.breed_sample] if args.breed_sample else rows
         LOGGER.info("=== %s: breed-level statistics (%d images) ===", label, len(breed_rows))
-        breed_report = evaluate_model(
-            embedder, breed_rows, args.batch_size, label_key=0, include_probe=False
-        )
+        breed_report = evaluate_model(embedder, breed_rows, args.batch_size, label_key=0, include_probe=False)
         report["models"][label] = {
             "species": species_report,
             "breed": breed_report,
@@ -289,7 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         }
         LOGGER.info(
             "%s: species 1-NN=%.4f gap=%.4f | breed 1-NN=%.4f",
-            label, species_report["1nn_accuracy"],
+            label,
+            species_report["1nn_accuracy"],
             species_report["distance_structure"]["separation_gap"],
             breed_report["1nn_accuracy"],
         )
@@ -329,7 +336,7 @@ def _verdict(report: dict) -> dict:
                 "training preserved cross-species structure"
                 if delta > -0.02
                 else "training REDUCED cross-species separation — the identity objective "
-                     "partly overwrote the backbone's general organisation"
+                "partly overwrote the backbone's general organisation"
             )
     return out
 

@@ -38,8 +38,11 @@ def current_size(destination: Path) -> int:
 def snapshot(*args: str, window_mb: float, timeout_s: float) -> subprocess.CompletedProcess:
     """Run one chunked-download round, tolerating either partial or complete success."""
     command = [
-        sys.executable, str(HERE / "chunk_download.py"), *args,
-        "--window-mb", str(window_mb),
+        sys.executable,
+        str(HERE / "chunk_download.py"),
+        *args,
+        "--window-mb",
+        str(window_mb),
     ]
     return subprocess.run(command, capture_output=True, text=True, timeout=None, check=False)
 
@@ -53,8 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--header", action="append", default=[])
     parser.add_argument("--window-mb", type=float, default=2.0)
     parser.add_argument("--rounds", type=int, default=300)
-    parser.add_argument("--stall-rounds", type=int, default=6,
-                        help="Give up after this many consecutive rounds with no progress")
+    parser.add_argument(
+        "--stall-rounds",
+        type=int,
+        default=6,
+        help="Give up after this many consecutive rounds with no progress",
+    )
     parser.add_argument("--pause", type=float, default=4.0)
     args = parser.parse_args(argv)
 
@@ -81,10 +88,17 @@ def main(argv: list[str] | None = None) -> int:
         for raw in args.header:
             extra += ["--header", raw]
         command = [
-            sys.executable, str(HERE / "chunk_download.py"),
-            "--url", args.url, "--out", str(destination),
-            "--expect-bytes", str(args.expect_bytes),
-            "--window-mb", str(args.window_mb), *extra,
+            sys.executable,
+            str(HERE / "chunk_download.py"),
+            "--url",
+            args.url,
+            "--out",
+            str(destination),
+            "--expect-bytes",
+            str(args.expect_bytes),
+            "--window-mb",
+            str(args.window_mb),
+            *extra,
         ]
         if args.basic_auth:
             command += ["--basic-auth", args.basic_auth]
@@ -94,8 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         pct = after / args.expect_bytes * 100
         elapsed_min = (time.time() - started) / 60
         print(
-            f"[supervisor] round {rounds}: {after / 1e6:.1f} MB "
-            f"({pct:.2f}%) after {elapsed_min:.1f} min",
+            f"[supervisor] round {rounds}: {after / 1e6:.1f} MB ({pct:.2f}%) after {elapsed_min:.1f} min",
             flush=True,
         )
 
@@ -107,8 +120,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             stalls += 1
             tail = (result.stderr or result.stdout or "").strip().splitlines()
-            print(f"[supervisor] no progress ({stalls}/{args.stall_rounds}); "
-                  f"last error: {tail[-1] if tail else 'n/a'}", flush=True)
+            print(
+                f"[supervisor] no progress ({stalls}/{args.stall_rounds}); "
+                f"last error: {tail[-1] if tail else 'n/a'}",
+                flush=True,
+            )
             if stalls >= args.stall_rounds:
                 print("[supervisor] stalled; giving up", file=sys.stderr)
                 return 2

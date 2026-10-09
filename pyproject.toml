@@ -135,7 +135,12 @@ ignore = [
 # FastAPI declares body and form parameters through calls in the signature defaults (``File(...)``,
 # ``Form(...)``); that is the framework's documented interface, not a mutable-default bug. Scoped to
 # the web package so the rule still applies everywhere else.
-"src/catface/web/api.py" = ["B008"]
+#
+# UP045 asks for ``X | None`` instead of ``Optional[X]``, which ruff suggests because the *source*
+# is Python 3.10+ syntax. The declared target is 3.9 and pydantic resolves these annotations at
+# runtime, so the suggested form raises TypeError there — the 3.9 CI job failed on exactly this.
+# The ignore is limited to the module whose models are runtime-resolved.
+"src/catface/web/api.py" = ["B008", "UP045"]
 
 [tool.mypy]
 python_version = "3.9"

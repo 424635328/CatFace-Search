@@ -140,9 +140,7 @@ class TrainingHistory:
     def save(self, path: str | Path) -> Path:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
-            json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        target.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         return target
 
     @classmethod
@@ -346,23 +344,29 @@ class IdentityImageDataset:
         import torchvision.transforms as T  # noqa: N812 - T is the torchvision convention
 
         if not self.train:
-            return T.Compose([
-                T.Resize(int(self.image_size * 1.14), interpolation=T.InterpolationMode.BICUBIC),
-                T.CenterCrop(self.image_size),
+            return T.Compose(
+                [
+                    T.Resize(int(self.image_size * 1.14), interpolation=T.InterpolationMode.BICUBIC),
+                    T.CenterCrop(self.image_size),
+                    T.ToTensor(),
+                    T.Normalize(mean=list(mean), std=list(std)),
+                ]
+            )
+        return T.Compose(
+            [
+                T.RandomResizedCrop(
+                    self.image_size,
+                    scale=(0.75, 1.0),
+                    ratio=(0.9, 1.11),
+                    interpolation=T.InterpolationMode.BICUBIC,
+                ),
+                T.RandomHorizontalFlip(p=0.5),
+                T.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1),
                 T.ToTensor(),
                 T.Normalize(mean=list(mean), std=list(std)),
-            ])
-        return T.Compose([
-            T.RandomResizedCrop(
-                self.image_size, scale=(0.75, 1.0), ratio=(0.9, 1.11),
-                interpolation=T.InterpolationMode.BICUBIC,
-            ),
-            T.RandomHorizontalFlip(p=0.5),
-            T.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1),
-            T.ToTensor(),
-            T.Normalize(mean=list(mean), std=list(std)),
-            T.RandomErasing(p=0.15, scale=(0.02, 0.12), value="random"),
-        ])
+                T.RandomErasing(p=0.15, scale=(0.02, 0.12), value="random"),
+            ]
+        )
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -421,7 +425,9 @@ class Trainer:
         if dropped:
             LOGGER.warning(
                 "Dropping %d identity/ies with a single training image (no positive pair "
-                "possible); %d identities remain", dropped, len(usable),
+                "possible); %d identities remain",
+                dropped,
+                len(usable),
             )
         eligible = [r for r in train_records if r.identity in usable]
         if not eligible:
@@ -435,9 +441,7 @@ class Trainer:
         self.paths = [r.path for r in eligible]
         self.labels = [self.class_to_index[r.identity] for r in eligible]
 
-        self.dataset = IdentityImageDataset(
-            self.paths, self.labels, image_size=config.image_size, train=True
-        )
+        self.dataset = IdentityImageDataset(self.paths, self.labels, image_size=config.image_size, train=True)
         batches_per_epoch = max(
             1,
             len(self.paths) // max(config.identities_per_batch * config.samples_per_identity, 1),
@@ -469,9 +473,7 @@ class Trainer:
         self.criterion = torch.nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
 
         self.ema_state: dict[str, Any] | None = None
-        self.history = TrainingHistory(
-            config=config.as_dict(), class_names=self.class_names
-        )
+        self.history = TrainingHistory(config=config.as_dict(), class_names=self.class_names)
         self.best_state: dict[str, Any] | None = None
 
         # -- pause / resume -------------------------------------------------
@@ -616,7 +618,8 @@ class Trainer:
         self.history.save(target.parent / "training_history.json")
         LOGGER.info(
             "Checkpointed resumable state at epoch %d -> %s",
-            state.epoch, saved,
+            state.epoch,
+            saved,
         )
         return saved
 
@@ -642,14 +645,11 @@ class Trainer:
             raise ModelError(f"No resumable state at {source}")
         payload = torch.load(source, map_location="cpu", weights_only=False)
         if not isinstance(payload, TrainingState):
-            raise ModelError(
-                f"{source} does not contain a TrainingState (found {type(payload).__name__})"
-            )
+            raise ModelError(f"{source} does not contain a TrainingState (found {type(payload).__name__})")
         state: TrainingState = payload
         if state.version != STATE_FORMAT_VERSION:
             raise ModelError(
-                f"{source} has state version {state.version}, this build expects "
-                f"{STATE_FORMAT_VERSION}"
+                f"{source} has state version {state.version}, this build expects {STATE_FORMAT_VERSION}"
             )
         if strict:
             if state.class_names and state.class_names != list(self.class_names):
@@ -676,7 +676,8 @@ class Trainer:
             LOGGER.warning(
                 "Class space differs (%d -> %d); the margin head was re-initialised and "
                 "only the backbone weights were carried over",
-                len(state.class_names), len(self.class_names),
+                len(state.class_names),
+                len(self.class_names),
             )
         self.optimizer.load_state_dict(state.optimizer)
         self.scheduler.load_state_dict(state.scheduler)
@@ -732,7 +733,9 @@ class Trainer:
         if start_epoch > 1:
             LOGGER.info(
                 "Continuing from epoch %d of %d (%d epochs already recorded)",
-                start_epoch, self.epochs_planned, len(self.history.epochs),
+                start_epoch,
+                self.epochs_planned,
+                len(self.history.epochs),
             )
 
         try:
@@ -743,9 +746,7 @@ class Trainer:
                 if external and not self._pause_requested:
                     self.request_pause(external[0])
                 if self._pause_requested:
-                    LOGGER.info(
-                        "Not starting epoch %d: %s", epoch, self._pause_reason
-                    )
+                    LOGGER.info("Not starting epoch %d: %s", epoch, self._pause_reason)
                     break
 
                 self.sampler.set_epoch(epoch)
@@ -765,17 +766,14 @@ class Trainer:
                     # recorded graph. That failure mode is silent — the AMP scaler discards
                     # the step and the model never updates while the loss stays finite.
                     with self.embedder.resolution_scope(int(images.shape[-2]), int(images.shape[-1])):
-                        with torch.amp.autocast("cuda", enabled=self.use_amp,
-                                                dtype=self.amp_dtype):
+                        with torch.amp.autocast("cuda", enabled=self.use_amp, dtype=self.amp_dtype):
                             # Pooled (unprojected) features: the head applies the projection.
                             features = self.embedder.pool_features(images)
                             loss = self._compute_loss(labels, features)
                         self.scaler.scale(loss).backward()
                     if self.config.grad_clip > 0:
                         self.scaler.unscale_(self.optimizer)
-                        torch.nn.utils.clip_grad_norm_(
-                            self.embedder.parameters(), self.config.grad_clip
-                        )
+                        torch.nn.utils.clip_grad_norm_(self.embedder.parameters(), self.config.grad_clip)
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                     self.scheduler.step()
@@ -795,14 +793,21 @@ class Trainer:
                         LOGGER.info(
                             "epoch %d/%d batch %d/%d loss=%.4f (last-25 mean) "
                             "%.2f s/batch, ~%.1f min left in epoch",
-                            epoch, self.epochs_planned, batch_index, n_batches, running,
-                            rate, remaining / 60.0,
+                            epoch,
+                            self.epochs_planned,
+                            batch_index,
+                            n_batches,
+                            running,
+                            rate,
+                            remaining / 60.0,
                         )
 
                 mean_loss = float(np.mean(losses)) if losses else float("nan")
                 epoch_seconds = time.perf_counter() - started
                 record = EpochRecord(
-                    epoch=epoch, loss=mean_loss, learning_rate=learning_rate,
+                    epoch=epoch,
+                    loss=mean_loss,
+                    learning_rate=learning_rate,
                     seconds=round(epoch_seconds, 2),
                 )
 
@@ -816,8 +821,7 @@ class Trainer:
                         self.history.best_score = recall
                         self.history.best_epoch = epoch
                         self.best_state = {
-                            k: v.detach().cpu().clone()
-                            for k, v in self.embedder.state_dict().items()
+                            k: v.detach().cpu().clone() for k, v in self.embedder.state_dict().items()
                         }
                         self.patience = 0
                     else:
@@ -826,7 +830,9 @@ class Trainer:
                 self.history.epochs.append(record)
                 LOGGER.info(
                     "epoch %d/%d loss=%.4f val_R@1=%s (%.1fs)",
-                    epoch, self.epochs_planned, mean_loss,
+                    epoch,
+                    self.epochs_planned,
+                    mean_loss,
                     f"{record.val_recall_at_1:.4f}" if record.val_recall_at_1 is not None else "n/a",
                     epoch_seconds,
                     extra={"stage": "train", "epoch": epoch, "metric": "loss", "value": mean_loss},
@@ -866,7 +872,8 @@ class Trainer:
             LOGGER.info(
                 "Paused (%s) after epoch %d of %d. Resume with `--resume`; "
                 "the latest weights are kept so the optimisation continues unchanged.",
-                reason, self.history.epochs[-1].epoch if self.history.epochs else 0,
+                reason,
+                self.history.epochs[-1].epoch if self.history.epochs else 0,
                 self.epochs_planned,
             )
             self.save_state()
@@ -967,19 +974,21 @@ class Trainer:
         query_paths = [r.path for r in self.val_split.query_records]
         gallery_paths = [r.path for r in self.val_split.gallery_records]
         query = embed_records(
-            self.embedder, query_paths, image_size=self.config.image_size,
+            self.embedder,
+            query_paths,
+            image_size=self.config.image_size,
             batch_size=max(8, self.config.batch_size // 2),
         )
         gallery = embed_records(
-            self.embedder, gallery_paths, image_size=self.config.image_size,
+            self.embedder,
+            gallery_paths,
+            image_size=self.config.image_size,
             batch_size=max(8, self.config.batch_size // 2),
         )
         if query.vectors.size == 0 or gallery.vectors.size == 0:
             return 0.0, 0.0, 0
         similarity = query.vectors @ gallery.vectors.T
-        self_mask = np.array(
-            [[a == b for b in gallery.ids] for a in query.ids], dtype=bool
-        )
+        self_mask = np.array([[a == b for b in gallery.ids] for a in query.ids], dtype=bool)
         metrics = evaluate_retrieval(
             similarity,
             query_labels=self.val_split.query_labels,

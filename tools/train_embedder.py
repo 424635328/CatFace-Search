@@ -68,8 +68,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--backbone-lr-scale", type=float, default=0.1)
-    parser.add_argument("--loss", default="arcface",
-                        choices=["arcface", "cosface", "subcenter_arcface", "triplet", "linear"])
+    parser.add_argument(
+        "--loss", default="arcface", choices=["arcface", "cosface", "subcenter_arcface", "triplet", "linear"]
+    )
     parser.add_argument("--margin", type=float, default=0.35)
     parser.add_argument("--scale", type=float, default=64.0)
     parser.add_argument("--embedding-dim", type=int, default=512)
@@ -86,12 +87,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--device", default=None)
     # -- pause / resume -------------------------------------------------------
-    parser.add_argument("--resume", action="store_true",
-                        help="Continue from <output>/train_state.pt if present")
-    parser.add_argument("--max-seconds", type=float, default=None,
-                        help="Wall-clock budget; pauses cleanly at the next epoch boundary")
-    parser.add_argument("--ignore-signals", action="store_true",
-                        help="Do not install SIGINT/SIGTERM pause handlers (for tests)")
+    parser.add_argument(
+        "--resume", action="store_true", help="Continue from <output>/train_state.pt if present"
+    )
+    parser.add_argument(
+        "--max-seconds",
+        type=float,
+        default=None,
+        help="Wall-clock budget; pauses cleanly at the next epoch boundary",
+    )
+    parser.add_argument(
+        "--ignore-signals",
+        action="store_true",
+        help="Do not install SIGINT/SIGTERM pause handlers (for tests)",
+    )
     args = parser.parse_args(argv)
 
     base = load_config(args.config)
@@ -108,7 +117,11 @@ def main(argv: list[str] | None = None) -> int:
     identities = sorted({r.identity for r in train_records if r.identity})
     LOGGER.info(
         "train: %d images / %d identities | val: %d images | test: %d images | device=%s",
-        len(train_records), len(identities), len(val_records), len(test_records), device,
+        len(train_records),
+        len(identities),
+        len(val_records),
+        len(test_records),
+        device,
     )
 
     val_split = build_identity_split(val_records, queries_per_identity=1, seed=args.seed, name="val")
@@ -128,8 +141,11 @@ def main(argv: list[str] | None = None) -> int:
     embedder = Embedder(embedder_config, num_classes=len(identities), device=device)
     LOGGER.info(
         "embedder: backbone=%s pooling=%s backbone_dim=%d projected_dim=%d params=%.1fM",
-        args.backbone, embedder.pooling, embedder.backbone.feature_dim,
-        embedder.head.embedding_dim, sum(p.numel() for p in embedder.parameters()) / 1e6,
+        args.backbone,
+        embedder.pooling,
+        embedder.backbone.feature_dim,
+        embedder.head.embedding_dim,
+        sum(p.numel() for p in embedder.parameters()) / 1e6,
     )
 
     train_config = TrainConfigResolved(
@@ -162,8 +178,13 @@ def main(argv: list[str] | None = None) -> int:
 
     started = time.perf_counter()
     history, trainer = train_metric_learner(
-        embedder, train_records, val_split, train_config, device=device,
-        resume=args.resume, max_seconds=args.max_seconds,
+        embedder,
+        train_records,
+        val_split,
+        train_config,
+        device=device,
+        resume=args.resume,
+        max_seconds=args.max_seconds,
         handle_signals=not args.ignore_signals,
     )
     elapsed = time.perf_counter() - started
@@ -177,10 +198,12 @@ def main(argv: list[str] | None = None) -> int:
     # Score the held-out identities with the saved weights, so the report quotes a number
     # that comes from the artifact rather than from an in-memory model.
     reloaded = Embedder.load(checkpoint, device=device)
-    query = embed_records(reloaded, [r.path for r in val_split.query_records],
-                          image_size=args.image_size, batch_size=32)
-    gallery = embed_records(reloaded, [r.path for r in val_split.gallery_records],
-                            image_size=args.image_size, batch_size=32)
+    query = embed_records(
+        reloaded, [r.path for r in val_split.query_records], image_size=args.image_size, batch_size=32
+    )
+    gallery = embed_records(
+        reloaded, [r.path for r in val_split.gallery_records], image_size=args.image_size, batch_size=32
+    )
     similarity = query.vectors @ gallery.vectors.T
     from catface.eval.metrics import evaluate_retrieval
 
@@ -189,8 +212,11 @@ def main(argv: list[str] | None = None) -> int:
 
     mask = np.array(self_mask, dtype=bool)
     metrics = evaluate_retrieval(
-        similarity, val_split.query_labels, val_split.gallery_labels,
-        recall_ks=(1, 5, 10), exclude_self=mask if mask.any() else None,
+        similarity,
+        val_split.query_labels,
+        val_split.gallery_labels,
+        recall_ks=(1, 5, 10),
+        exclude_self=mask if mask.any() else None,
     )
 
     completed_epochs = history.epochs[-1].epoch if history.epochs else 0

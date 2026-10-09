@@ -53,9 +53,7 @@ def _torch():
     try:
         import torch
     except ImportError as exc:  # pragma: no cover
-        raise ModelError(
-            "PyTorch is required. Install it with `pip install torch torchvision`."
-        ) from exc
+        raise ModelError("PyTorch is required. Install it with `pip install torch torchvision`.") from exc
     return torch
 
 
@@ -104,10 +102,10 @@ class TorchvisionBackbone:
                 state = state["state_dict"]
             # A checkpoint saved from an ``nn.Sequential`` wrapper needs re-keying.
             if any(key.startswith("0.") for key in list(state)[:5]):
-                state = {key.split(".", 1)[1] if key[0].isdigit() else key: value
-                         for key, value in state.items()}
-                state = {key: value for key, value in state.items()
-                         if not key.startswith("fc.")}
+                state = {
+                    key.split(".", 1)[1] if key[0].isdigit() else key: value for key, value in state.items()
+                }
+                state = {key: value for key, value in state.items() if not key.startswith("fc.")}
             missing, unexpected = network.load_state_dict(state, strict=False)
             if missing:
                 LOGGER.warning("Missing keys when loading %s: %d", architecture, len(missing))
@@ -116,13 +114,22 @@ class TorchvisionBackbone:
         else:
             if local:
                 raise ModelError(f"Checkpoint not found: {local}")
-            network = constructor(weights="DEFAULT" if weights_enum else None) if weights_enum \
+            network = (
+                constructor(weights="DEFAULT" if weights_enum else None)
+                if weights_enum
                 else constructor(pretrained=True)
+            )
 
         # Split into feature extractor (through the last conv block) + pooling.
         self.features = nn.Sequential(
-            network.conv1, network.bn1, network.relu, network.maxpool,
-            network.layer1, network.layer2, network.layer3, network.layer4,
+            network.conv1,
+            network.bn1,
+            network.relu,
+            network.maxpool,
+            network.layer1,
+            network.layer2,
+            network.layer3,
+            network.layer4,
         )
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.name = architecture
@@ -194,11 +201,16 @@ class Dinov2Backbone:
             state = torch.load(local, map_location="cpu", weights_only=False)
             if isinstance(state, dict) and "state_dict" in state:
                 state = state["state_dict"]
-            state = {key.replace("backbone.", "").replace("module.", ""): value
-                     for key, value in state.items()}
+            state = {
+                key.replace("backbone.", "").replace("module.", ""): value for key, value in state.items()
+            }
             missing, unexpected = self.network.load_state_dict(state, strict=False)
-            LOGGER.info("Loaded %s checkpoint (%d missing, %d unexpected keys)",
-                        architecture, len(missing), len(unexpected))
+            LOGGER.info(
+                "Loaded %s checkpoint (%d missing, %d unexpected keys)",
+                architecture,
+                len(missing),
+                len(unexpected),
+            )
 
         self.feature_dim = int(self.network.embed_dim)
         self.patch_size = int(getattr(self.network, "patch_size", 14))
@@ -250,9 +262,7 @@ class TimmVitBackbone:
         try:
             import timm
         except ImportError as exc:  # pragma: no cover
-            raise ModelError(
-                "timm is required for the DINOv2 backbone: pip install timm"
-            ) from exc
+            raise ModelError("timm is required for the DINOv2 backbone: pip install timm") from exc
         self.name = timm_name.replace("/", "_")
         local = Path(pretrained) if pretrained else None
         if local is not None and not local.is_file():
@@ -340,8 +350,7 @@ class TimmVitBackbone:
         patch_h, patch_w = patch_embed.patch_size
         if height % patch_h or width % patch_w:
             raise ModelError(
-                f"Input size {height}x{width} must be divisible by the patch size "
-                f"{patch_h}x{patch_w}"
+                f"Input size {height}x{width} must be divisible by the patch size {patch_h}x{patch_w}"
             )
         grid = (height // patch_h, width // patch_w)
         patch_embed.img_size = (height, width)
@@ -349,7 +358,8 @@ class TimmVitBackbone:
         if self._native_grid == 0:
             LOGGER.warning(
                 "%s: positional embedding has a non-square patch grid; resolution changes "
-                "are unsupported and the native embedding is used", self.name,
+                "are unsupported and the native embedding is used",
+                self.name,
             )
             self._active_pos_embed = self._native_pos_embed
             return
@@ -377,9 +387,7 @@ class TimmVitBackbone:
         patches = base[:, prefix_count:]
         patches = patches.reshape(1, self._native_grid, self._native_grid, embed_dim)
         patches = patches.permute(0, 3, 1, 2)
-        resized = torch.nn.functional.interpolate(
-            patches, size=grid, mode="bicubic", align_corners=False
-        )
+        resized = torch.nn.functional.interpolate(patches, size=grid, mode="bicubic", align_corners=False)
         resized = resized.permute(0, 2, 3, 1).reshape(1, grid[0] * grid[1], embed_dim)
         # `pos_embed` is a registered Parameter, so the swap-in must be a Parameter too.
         return torch.nn.Parameter(torch.cat([prefix, resized], dim=1), requires_grad=False)
@@ -480,9 +488,7 @@ class ClipBackbone:
             raise ModelError(
                 "open_clip is required for the CLIP backbone: pip install open_clip_torch"
             ) from exc
-        self.network, _, self.preprocess = open_clip.create_model_and_transforms(
-            model_name, pretrained=tag
-        )
+        self.network, _, self.preprocess = open_clip.create_model_and_transforms(model_name, pretrained=tag)
         if pretrained:
             local = Path(pretrained)
             if not local.is_file():
@@ -545,32 +551,47 @@ class TimmBackbone:
         if tokens.ndim == 4:  # CNN feature map
             self.prefix_tokens = 0
             pooled = tokens.mean(dim=(2, 3))
-            return BackboneOutput(descriptor=pooled, tokens=tokens.flatten(2).transpose(1, 2),
-                                  prefix_tokens=0)
+            return BackboneOutput(
+                descriptor=pooled, tokens=tokens.flatten(2).transpose(1, 2), prefix_tokens=0
+            )
         if not self._layout_known:
             self.prefix_tokens = 1
             self._layout_known = True
-        return BackboneOutput(
-            descriptor=tokens[:, 0], tokens=tokens, prefix_tokens=self.prefix_tokens
-        )
+        return BackboneOutput(descriptor=tokens[:, 0], tokens=tokens, prefix_tokens=self.prefix_tokens)
 
 
 _FACTORIES: dict[str, Callable[..., Backbone]] = {
-    "resnet18": lambda **kw: TorchvisionBackbone("resnet18", **{k: v for k, v in kw.items() if k == "pretrained"}),
-    "resnet34": lambda **kw: TorchvisionBackbone("resnet34", **{k: v for k, v in kw.items() if k == "pretrained"}),
-    "resnet50": lambda **kw: TorchvisionBackbone("resnet50", **{k: v for k, v in kw.items() if k == "pretrained"}),
-    "resnet101": lambda **kw: TorchvisionBackbone("resnet101", **{k: v for k, v in kw.items() if k == "pretrained"}),
-    "wide_resnet50_2": lambda **kw: TorchvisionBackbone("wide_resnet50_2", **{k: v for k, v in kw.items() if k == "pretrained"}),
+    "resnet18": lambda **kw: TorchvisionBackbone(
+        "resnet18", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
+    "resnet34": lambda **kw: TorchvisionBackbone(
+        "resnet34", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
+    "resnet50": lambda **kw: TorchvisionBackbone(
+        "resnet50", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
+    "resnet101": lambda **kw: TorchvisionBackbone(
+        "resnet101", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
+    "wide_resnet50_2": lambda **kw: TorchvisionBackbone(
+        "wide_resnet50_2", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
     # DINOv2 weights come from timm/HuggingFace; see TimmVitBackbone for why.
     **{
-        alias: (lambda name: lambda **kw: TimmVitBackbone(
-            TIMM_ALIASES[name],
-            pretrained=kw.get("pretrained"),
-            gradient_checkpointing=kw.get("gradient_checkpointing", False),
-        ))(alias)
+        alias: (
+            lambda name: (
+                lambda **kw: TimmVitBackbone(
+                    TIMM_ALIASES[name],
+                    pretrained=kw.get("pretrained"),
+                    gradient_checkpointing=kw.get("gradient_checkpointing", False),
+                )
+            )
+        )(alias)
         for alias in TIMM_ALIASES
     },
-    "clip_vitb32": lambda **kw: ClipBackbone("clip_vitb32", **{k: v for k, v in kw.items() if k == "pretrained"}),
+    "clip_vitb32": lambda **kw: ClipBackbone(
+        "clip_vitb32", **{k: v for k, v in kw.items() if k == "pretrained"}
+    ),
 }
 
 
@@ -600,8 +621,7 @@ def build_backbone(
     if name == "timm":
         if not timm_name:
             raise ModelError("timm_name is required when backbone == 'timm'")
-        return TimmBackbone(timm_name, pretrained=pretrained,
-                            gradient_checkpointing=gradient_checkpointing)
+        return TimmBackbone(timm_name, pretrained=pretrained, gradient_checkpointing=gradient_checkpointing)
     if name not in _FACTORIES:
         raise ModelError(f"Unknown backbone {name!r}. Available: {available_backbones()}")
     kwargs: dict[str, Any] = {"pretrained": pretrained}

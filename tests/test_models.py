@@ -91,8 +91,9 @@ class TestMetricHead:
         assert torch.allclose(with_margin, without_labels)
 
     def test_training_margin_reduces_the_target_logit(self):
-        head = MetricHead(in_features=16, num_classes=4, embedding_dim=16,
-                          kind="arcface", margin=0.5, scale=16.0)
+        head = MetricHead(
+            in_features=16, num_classes=4, embedding_dim=16, kind="arcface", margin=0.5, scale=16.0
+        )
         features = torch.randn(4, 16)
         labels = torch.tensor([0, 1, 2, 3])
 
@@ -123,8 +124,9 @@ class TestMetricHead:
         assert torch.isfinite(logits).all()
 
     def test_subcenter_produces_one_logit_per_identity(self):
-        head = MetricHead(in_features=16, num_classes=5, embedding_dim=8,
-                          kind="subcenter_arcface", num_subcenters=3)
+        head = MetricHead(
+            in_features=16, num_classes=5, embedding_dim=8, kind="subcenter_arcface", num_subcenters=3
+        )
         assert head.module.weight.shape[0] == 15
         head.train(False)
         assert head(torch.randn(2, 16), None).shape == (2, 5)
@@ -136,9 +138,7 @@ class TestMetricHead:
 
 class TestAuxiliaryLosses:
     def test_triplet_loss_is_zero_when_margins_are_satisfied(self):
-        embeddings = torch.nn.functional.normalize(
-            torch.tensor([[1.0, 0.0], [0.98, 0.1], [0.0, 1.0]]), dim=1
-        )
+        embeddings = torch.nn.functional.normalize(torch.tensor([[1.0, 0.0], [0.98, 0.1], [0.0, 1.0]]), dim=1)
         labels = torch.tensor([0, 0, 1])
         assert float(TripletLoss(margin=0.1)(embeddings, labels)) == pytest.approx(0.0, abs=1e-6)
 
@@ -274,9 +274,14 @@ class TestEmbedderMechanics:
         cnn = self._embedder(pooling="auto")
         assert cnn.pooling == "gap"
         transformer = Embedder(
-            EmbedderConfig(backbone="timm", timm_name="vit_tiny_patch16_224.augreg_in21k",
-                           embedding_dim=16, pooling="auto"),
-            num_classes=0, device="cpu",
+            EmbedderConfig(
+                backbone="timm",
+                timm_name="vit_tiny_patch16_224.augreg_in21k",
+                embedding_dim=16,
+                pooling="auto",
+            ),
+            num_classes=0,
+            device="cpu",
         )
         assert transformer.pooling == "cls_gap"
 

@@ -50,8 +50,7 @@ class _HumanFormatter(logging.Formatter):
 
     def __init__(self, run_id: str | None) -> None:
         suffix = f" [{run_id}]" if run_id else ""
-        super().__init__(fmt=f"%(asctime)s %(levelname)-7s {suffix} %(message)s",
-                         datefmt="%H:%M:%S")
+        super().__init__(fmt=f"%(asctime)s %(levelname)-7s {suffix} %(message)s", datefmt="%H:%M:%S")
 
 
 def configure_logging(
@@ -181,14 +180,23 @@ def environment_report() -> dict[str, Any]:
         pass
 
     try:
-        report["git_commit"] = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=10, check=False,
-        ).stdout.strip() or None
+        report["git_commit"] = (
+            subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            ).stdout.strip()
+            or None
+        )
         report["git_dirty"] = bool(
             subprocess.run(
                 ["git", "status", "--porcelain"],
-                capture_output=True, text=True, timeout=10, check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
             ).stdout.strip()
         )
     except Exception:

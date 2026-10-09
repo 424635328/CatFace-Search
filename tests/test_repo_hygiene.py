@@ -45,6 +45,7 @@ def _load_tool(name: str):
 
 check_staged = _load_tool("check_staged")
 
+
 #: Binary and vendored formats where a byte scan is meaningless or misleading.
 SKIP_SUFFIXES = {
     ".png",
@@ -368,6 +369,57 @@ class TestDeclaredPythonFloor:
         assert self._declared_floor() >= (3, 9)
         # The needle list must be non-empty and must still cover the construct CI caught.
         assert any("dataclass(" in key for key in self._too_new_constructs())
+
+    def test_web_response_models_resolve_on_the_declared_floor(self):
+        """Annotations *resolved* at runtime must not use the PEP 604 union syntax.
+
+        CI caught this: ``str | None`` in a pydantic model field failed the Python 3.9 job with
+        "unsupported operand type(s) for |: 'type' and 'NoneType'", while local runs and the 3.11
+        job were green. ``from __future__ import annotations`` does not help, because pydantic
+        resolves those annotations deliberately instead of storing them as strings. Dataclass fields
+        using ``| None`` are unaffected for the same reason, and are not flagged.
+
+        ``typing.get_type_hints`` performs the same resolution the framework performs, so the
+        failure this test produces is the failure the 3.9 job produces. An AST scan for the syntax
+        was tried first and produced ~40 false positives from dataclasses; resolution replaced it.
+        """
+        from typing import get_type_hints
+
+        catface_web_api = pytest.importorskip("catface.web.api", reason="the web extra is not installed")
+        base_model = pytest.importorskip("pydantic").BaseModel
+
+        models = [
+            value
+            for value in vars(catface_web_api).values()
+            if isinstance(value, type) and issubclass(value, base_model)
+        ]
+        assert models, "no pydantic models found; this test would pass vacuously"
+
+        floor = self._declared_floor()
+        offenders: list[str] = []
+        for model in models:
+            try:
+                get_type_hints(model)
+            except TypeError as error:
+                offenders.append(f"{model.__name__}: {error}")
+        assert not offenders, (
+            f"web response models have annotations that cannot be resolved on Python "
+            f"{floor[0]}.{floor[1]}:\n  " + "\n  ".join(offenders)
+        )
+
+    def test_the_annotation_resolution_check_can_fail(self):
+        """Positive control: an unresolvable model must be reported, not silently accepted."""
+        from typing import get_type_hints
+
+        pydantic = pytest.importorskip("pydantic")
+
+        class Broken(pydantic.BaseModel):
+            # Quoted on purpose: the annotation must stay unresolvable for this control to mean
+            # anything, so the usual "remove the quotes" advice is deliberately not followed.
+            value: "Undefined_Name"  # noqa: F821, UP037
+
+        with pytest.raises(NameError):
+            get_type_hints(Broken)
 
 
 class TestSourceIsTracked:

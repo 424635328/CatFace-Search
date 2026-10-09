@@ -188,8 +188,10 @@ def prepare_dataset(config: PipelineConfig, source: str, _force: bool = False) -
     manifest_dir = Path(config.data.manifest)
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
-    plan = resolve_oiid_paths(config) if source == "oiid_cat" else DatasetPlan(
-        source=source, root=config.data.root, adapter="", notes=[]
+    plan = (
+        resolve_oiid_paths(config)
+        if source == "oiid_cat"
+        else DatasetPlan(source=source, root=config.data.root, adapter="", notes=[])
     )
 
     with timed(LOGGER, f"prepare {source}", stage="prepare", adapter=plan.adapter or source):
@@ -221,9 +223,7 @@ def prepare_dataset(config: PipelineConfig, source: str, _force: bool = False) -
                 )
             else:
                 parquet_dir = config.data.root / "raw" / "oxford_iiit_pet"
-                parquet_paths = {
-                    path.stem: path for path in sorted(parquet_dir.glob("*.parquet"))
-                }
+                parquet_paths = {path.stem: path for path in sorted(parquet_dir.glob("*.parquet"))}
                 if not parquet_paths:
                     raise DataError(f"No parquet files under {parquet_dir}")
                 head_boxes = None
@@ -247,8 +247,7 @@ def prepare_dataset(config: PipelineConfig, source: str, _force: bool = False) -
             manifest = prepare_cat_individuals(root, writer=writer)
         else:
             raise DataError(
-                f"prepare_dataset does not handle source {source!r}. "
-                f"Known: {sorted(SOURCE_LAYOUTS)}"
+                f"prepare_dataset does not handle source {source!r}. Known: {sorted(SOURCE_LAYOUTS)}"
             )
 
     report = finalise_manifest(
@@ -261,7 +260,9 @@ def prepare_dataset(config: PipelineConfig, source: str, _force: bool = False) -
     report["descriptor"] = {"tile": config.data.tile, "pad_ratio": config.data.pad_ratio}
     LOGGER.info(
         "Prepared %s: %d usable tiles, %d identities",
-        source, report["stats"]["total"], report["stats"]["identities"],
+        source,
+        report["stats"]["total"],
+        report["stats"]["identities"],
     )
     return report
 
@@ -318,7 +319,9 @@ def build_eval_split(
         )
     LOGGER.info(
         "Cross-dataset protocol: %d queries, %d gallery images, %d shared identities",
-        len(query_records), len(gallery_records), len(shared),
+        len(query_records),
+        len(gallery_records),
+        len(shared),
     )
     return Split(
         name=name,
@@ -389,7 +392,9 @@ def prepare_calfw_pairs(
     }
     LOGGER.info(
         "Prepared CALFW: %d pairs (%d same / %d different)",
-        report["pairs"], report["positive_pairs"], report["negative_pairs"],
+        report["pairs"],
+        report["positive_pairs"],
+        report["negative_pairs"],
     )
     return report
 
@@ -406,7 +411,9 @@ def make_embedder(
         embedder = Embedder.load(checkpoint, device=resolved_device)
         LOGGER.info(
             "Loaded checkpoint %s (backbone=%s, dim=%d)",
-            checkpoint, embedder.config.backbone, embedder.config.embedding_dim,
+            checkpoint,
+            embedder.config.backbone,
+            embedder.config.embedding_dim,
         )
         return embedder
 
@@ -428,8 +435,11 @@ def make_embedder(
     embedder = Embedder(embedder_config, num_classes=num_classes, device=resolved_device)
     LOGGER.info(
         "Built embedder: backbone=%s pooling=%s head=%s dim=%d device=%s",
-        embedder_config.backbone, embedder_config.pooling, embedder_config.head,
-        embedder_config.embedding_dim, resolved_device,
+        embedder_config.backbone,
+        embedder_config.pooling,
+        embedder_config.head,
+        embedder_config.embedding_dim,
+        resolved_device,
     )
     return embedder
 
@@ -446,7 +456,11 @@ def train_pipeline(
     if len(train_records) < 8:
         raise DataError(f"Only {len(train_records)} training tiles; need more to train")
     assert_identity_disjoint(
-        {"train": train_records, "val": val_records, "test": load_splits_from_manifest(train_manifest, splits_dir, "test")}
+        {
+            "train": train_records,
+            "val": val_records,
+            "test": load_splits_from_manifest(train_manifest, splits_dir, "test"),
+        }
     )
 
     identities = sorted({r.identity for r in train_records if r.identity})
@@ -560,9 +574,11 @@ def environment_pipeline(config: PipelineConfig) -> dict[str, Any]:
 
     # Data readiness checks, with the exact failing path in the message.
     manifest_dir = Path(config.data.manifest)
-    report["manifests"] = {
-        path.stem: path.stat().st_size for path in sorted(manifest_dir.glob("*_manifest.jsonl"))
-    } if manifest_dir.is_dir() else {}
+    report["manifests"] = (
+        {path.stem: path.stat().st_size for path in sorted(manifest_dir.glob("*_manifest.jsonl"))}
+        if manifest_dir.is_dir()
+        else {}
+    )
     for source in SOURCE_LAYOUTS:
         try:
             if source == "oiid_cat":

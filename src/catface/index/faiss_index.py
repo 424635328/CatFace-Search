@@ -101,13 +101,9 @@ class VectorIndex:
         if matrix.ndim != 2:
             raise ArtifactError(f"vectors must be 2-D, got {matrix.shape}")
         if matrix.shape[0] != len(ids):
-            raise ArtifactError(
-                f"{matrix.shape[0]} vectors but {len(ids)} ids — they must be aligned"
-            )
+            raise ArtifactError(f"{matrix.shape[0]} vectors but {len(ids)} ids — they must be aligned")
         if matrix.shape[1] != self.dim:
-            raise ArtifactError(
-                f"vector width {matrix.shape[1]} does not match index dim {self.dim}"
-            )
+            raise ArtifactError(f"vector width {matrix.shape[1]} does not match index dim {self.dim}")
         self._vectors = np.vstack([self._vectors, self._normalise(matrix, self.metric)])
         self.ids.extend(str(i) for i in ids)
         return self
@@ -136,11 +132,14 @@ class VectorIndex:
                 if m != self.m_pq:
                     LOGGER.warning(
                         "Adjusted PQ segments from %d to %d so they divide dim=%d",
-                        self.m_pq, m, self.dim,
+                        self.m_pq,
+                        m,
+                        self.dim,
                     )
                 quantiser = faiss.IndexFlatIP(self.dim)
-                index = faiss.IndexIVFPQ(quantiser, self.dim, self.nlist, m, self.nbits,
-                                         faiss.METRIC_INNER_PRODUCT)
+                index = faiss.IndexIVFPQ(
+                    quantiser, self.dim, self.nlist, m, self.nbits, faiss.METRIC_INNER_PRODUCT
+                )
                 index.train(self._vectors)
                 index.add(self._vectors)
                 index.nprobe = self.nprobe
@@ -164,9 +163,7 @@ class VectorIndex:
         if matrix.ndim == 1:
             matrix = matrix[None, :]
         if matrix.shape[1] != self.dim:
-            raise ArtifactError(
-                f"query width {matrix.shape[1]} does not match index dim {self.dim}"
-            )
+            raise ArtifactError(f"query width {matrix.shape[1]} does not match index dim {self.dim}")
         k = int(min(top_k, self.size))
 
         if self._faiss_index is not None:
@@ -208,13 +205,15 @@ class VectorIndex:
             "size": self.size,
             "backend": self.backend,
             "params": {
-                "nlist": self.nlist, "nprobe": self.nprobe, "m_pq": self.m_pq,
-                "nbits": self.nbits, "hnsw_m": self.hnsw_m, "ef_search": self.ef_search,
+                "nlist": self.nlist,
+                "nprobe": self.nprobe,
+                "m_pq": self.m_pq,
+                "nbits": self.nbits,
+                "hnsw_m": self.hnsw_m,
+                "ef_search": self.ef_search,
             },
         }
-        (target / "index_meta.json").write_text(
-            json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        (target / "index_meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")
         (target / "ids.txt").write_text("\n".join(self.ids) + "\n", encoding="utf-8")
         with (target / "vectors.pkl").open("wb") as handle:
             pickle.dump({"vectors": self._vectors, "ids": self.ids}, handle, protocol=4)

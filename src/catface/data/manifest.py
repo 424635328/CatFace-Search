@@ -168,7 +168,8 @@ class Manifest:
         banned = set(exclude_flags)
 
         candidate = [
-            r for r in self.records
+            r
+            for r in self.records
             if (source_set is None or r.source in source_set)
             and (identity_set is None or (r.identity in identity_set))
             and not (banned & set(r.flags))
@@ -177,10 +178,7 @@ class Manifest:
 
         if min_identity_images > 1:
             counts = Counter(r.identity for r in candidate if r.identity)
-            candidate = [
-                r for r in candidate
-                if r.identity and counts[r.identity] >= min_identity_images
-            ]
+            candidate = [r for r in candidate if r.identity and counts[r.identity] >= min_identity_images]
 
         return Manifest(candidate)
 
@@ -233,8 +231,7 @@ class Manifest:
                     version = payload["_manifest_version"]
                     if version != MANIFEST_VERSION:
                         raise DataError(
-                            f"Manifest {source} has version {version}, "
-                            f"this build expects {MANIFEST_VERSION}"
+                            f"Manifest {source} has version {version}, this build expects {MANIFEST_VERSION}"
                         )
                     continue
                 try:

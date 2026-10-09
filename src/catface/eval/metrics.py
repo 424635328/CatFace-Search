@@ -117,21 +117,15 @@ def evaluate_retrieval(
     if sims.ndim != 2:
         raise BenchmarkError(f"similarities must be 2-D, got shape {sims.shape}")
     if sims.shape[0] != q_labels.shape[0]:
-        raise BenchmarkError(
-            f"{sims.shape[0]} similarity rows but {q_labels.shape[0]} query labels"
-        )
+        raise BenchmarkError(f"{sims.shape[0]} similarity rows but {q_labels.shape[0]} query labels")
     if sims.shape[1] != g_labels.shape[0]:
-        raise BenchmarkError(
-            f"{sims.shape[1]} similarity columns but {g_labels.shape[0]} gallery labels"
-        )
+        raise BenchmarkError(f"{sims.shape[1]} similarity columns but {g_labels.shape[0]} gallery labels")
 
     relevant = _relevance_matrix(q_labels, g_labels, exclude_self)
     hits_per_query = relevant.sum(axis=1)
     usable = hits_per_query > 0
     if not usable.any():
-        raise BenchmarkError(
-            "No query has a relevant gallery item; the protocol is not evaluable"
-        )
+        raise BenchmarkError("No query has a relevant gallery item; the protocol is not evaluable")
 
     sims = sims[usable]
     relevant = relevant[usable]
@@ -167,7 +161,9 @@ def evaluate_retrieval(
         hit_at[k] = float((hits > 0).mean())
         recall_at[k] = float((hits / hits_per_query).mean())
         precision_at_k = cumulative[:, :k] / positions[:k]
-        average_precision = (precision_at_k * ranked_relevant[:, :k]).sum(axis=1) / np.minimum(hits_per_query, k)
+        average_precision = (precision_at_k * ranked_relevant[:, :k]).sum(axis=1) / np.minimum(
+            hits_per_query, k
+        )
         map_at[k] = float(average_precision.mean())
 
     first_hit = np.argmax(ranked_relevant > 0, axis=1) + 1
@@ -262,8 +258,8 @@ def paired_bootstrap_delta(
         relevant = _relevance_matrix(q_labels, g_labels, exclude_self)
         order = np.argsort(-sims, axis=1, kind="stable")
         ranked = np.take_along_axis(relevant, order, axis=1)
-        hits.append(ranked[:, :min(k, ranked.shape[1])].any(axis=1).astype(np.float64))
-    usable = (_relevance_matrix(q_labels, g_labels, exclude_self).sum(axis=1) > 0)
+        hits.append(ranked[:, : min(k, ranked.shape[1])].any(axis=1).astype(np.float64))
+    usable = _relevance_matrix(q_labels, g_labels, exclude_self).sum(axis=1) > 0
     hit_a, hit_b = hits[0][usable], hits[1][usable]
 
     observed = float(hit_a.mean() - hit_b.mean())
@@ -395,9 +391,7 @@ def evaluate_verification(
         eligible = np.where(far <= far_target)[0]
         tar_at_far[float(far_target)] = float(tar[eligible].max()) if eligible.size else 0.0
 
-    accuracy_at_eer = float(
-        ((scores >= eer_threshold) == positives).mean()
-    )
+    accuracy_at_eer = float(((scores >= eer_threshold) == positives).mean())
 
     return VerificationMetrics(
         num_pairs=int(scores.shape[0]),

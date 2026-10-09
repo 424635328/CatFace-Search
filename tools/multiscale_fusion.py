@@ -38,12 +38,19 @@ from tools.retrieval_research import l2_normalize, retrieval_metrics
 
 
 def _key(checkpoint: str, manifest: str, image_size: int, views: tuple[str, ...]) -> str:
-    return cache_key(checkpoint, manifest, protocol="cat_individuals", image_size=image_size,
-                     tta=views, extra={"queries_per_identity": 1, "seed": 1337})
+    return cache_key(
+        checkpoint,
+        manifest,
+        protocol="cat_individuals",
+        image_size=image_size,
+        tta=views,
+        extra={"queries_per_identity": 1, "seed": 1337},
+    )
 
 
-def load_scale(directory: str, checkpoint: str, manifest: str, image_size: int,
-               views: tuple[str, ...]) -> dict | None:
+def load_scale(
+    directory: str, checkpoint: str, manifest: str, image_size: int, views: tuple[str, ...]
+) -> dict | None:
     return load(directory, _key(checkpoint, manifest, image_size, views))
 
 
@@ -91,8 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     for field in ("query_ids", "gallery_ids", "query_labels", "gallery_labels"):
         if list(first[field]) != list(second[field]):
             raise SystemExit(f"protocol mismatch on {field}: the two caches are not comparable")
-    print(f"protocol verified identical: {len(first['query_ids'])} queries, "
-          f"{len(first['gallery_ids'])} gallery")
+    print(
+        f"protocol verified identical: {len(first['query_ids'])} queries, {len(first['gallery_ids'])} gallery"
+    )
 
     query_labels = first["query_labels"]
     gallery_labels = first["gallery_labels"]
@@ -102,39 +110,54 @@ def main(argv: list[str] | None = None) -> int:
         similarity = (l2_normalize(q) @ l2_normalize(g).T).astype(np.float32)
         metrics = retrieval_metrics(similarity, query_labels, gallery_labels)
         rows.append({"name": name, "dim": int(q.shape[1]), **metrics})
-        print(f"  {name:<26} dim={q.shape[1]:<5} hit@1={metrics['hit@1']:.4f} "
-              f"hit@5={metrics['hit@5']:.4f} mINP={metrics['mINP']:.4f} mAP={metrics['mAP']:.4f}")
+        print(
+            f"  {name:<26} dim={q.shape[1]:<5} hit@1={metrics['hit@1']:.4f} "
+            f"hit@5={metrics['hit@5']:.4f} mINP={metrics['mINP']:.4f} mAP={metrics['mAP']:.4f}"
+        )
 
     print()
     evaluate(f"scale {args.size_a} only", first["query"], first["gallery"])
     evaluate(f"scale {args.size_b} only", second["query"], second["gallery"])
     for mode in ("concat", "mean"):
         for weight in (0.3, 0.5, 0.7):
-            evaluate(f"{mode} w={weight} ({args.size_a}/{args.size_b})",
-                     fuse(first["query"], second["query"], mode, weight),
-                     fuse(first["gallery"], second["gallery"], mode, weight))
+            evaluate(
+                f"{mode} w={weight} ({args.size_a}/{args.size_b})",
+                fuse(first["query"], second["query"], mode, weight),
+                fuse(first["gallery"], second["gallery"], mode, weight),
+            )
 
     best = max(rows, key=lambda row: (row["hit@1"], row["mINP"]))
     baseline = rows[0]
     print()
     print(f"best: {best['name']} hit@1={best['hit@1']:.4f} mINP={best['mINP']:.4f}")
-    print(f"vs {baseline['name']}: Δhit@1={best['hit@1'] - baseline['hit@1']:+.4f} "
-          f"ΔmINP={best['mINP'] - baseline['mINP']:+.4f}")
-    print(f"hit@1 resolution is 1/{len(query_labels)} = "
-          f"{1.0 / len(query_labels):.4f} per query, so a delta below that is one query")
+    print(
+        f"vs {baseline['name']}: Δhit@1={best['hit@1'] - baseline['hit@1']:+.4f} "
+        f"ΔmINP={best['mINP'] - baseline['mINP']:+.4f}"
+    )
+    print(
+        f"hit@1 resolution is 1/{len(query_labels)} = "
+        f"{1.0 / len(query_labels):.4f} per query, so a delta below that is one query"
+    )
 
     if args.out:
         out_path = Path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps({
-            "checkpoint": args.checkpoint,
-            "sizes": [args.size_a, args.size_b],
-            "views": list(views),
-            "queries": len(query_labels),
-            "per_query_resolution": 1.0 / len(query_labels),
-            "results": rows,
-            "best": best,
-        }, indent=2, ensure_ascii=False), encoding="utf-8")
+        out_path.write_text(
+            json.dumps(
+                {
+                    "checkpoint": args.checkpoint,
+                    "sizes": [args.size_a, args.size_b],
+                    "views": list(views),
+                    "queries": len(query_labels),
+                    "per_query_resolution": 1.0 / len(query_labels),
+                    "results": rows,
+                    "best": best,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         print(f"\nwritten to {out_path}")
     return 0
 

@@ -31,8 +31,10 @@ class TestRetrievalHandComputed:
 
     def test_perfect_ranking(self):
         similarity = np.array(
-            [[0.9, 0.8, 0.1, 0.0],   # ranks: a, a, b, b
-             [0.1, 0.0, 0.9, 0.8]],  # ranks: b, b, a, a
+            [
+                [0.9, 0.8, 0.1, 0.0],  # ranks: a, a, b, b
+                [0.1, 0.0, 0.9, 0.8],
+            ],  # ranks: b, b, a, a
             dtype=np.float32,
         )
         labels_q = np.array(["a", "b"])
@@ -55,8 +57,10 @@ class TestRetrievalHandComputed:
 
     def test_half_the_queries_find_their_match_first(self):
         similarity = np.array(
-            [[0.9, 0.8, 0.1, 0.0],     # query a: a is first -> hit
-             [0.9, 0.8, 0.7, 0.6]],    # query b: b is fourth -> miss at k=1
+            [
+                [0.9, 0.8, 0.1, 0.0],  # query a: a is first -> hit
+                [0.9, 0.8, 0.7, 0.6],
+            ],  # query b: b is fourth -> miss at k=1
             dtype=np.float32,
         )
         labels_q = np.array(["a", "b"])
@@ -81,8 +85,7 @@ class TestRetrievalHandComputed:
     def test_unordered_match_gives_expected_ranks(self):
         # Gallery [c, a, b]; query a finds its match at rank 2, query b at rank 2.
         similarity = np.array(
-            [[0.9, 0.8, 0.1],
-             [0.9, 0.1, 0.8]],
+            [[0.9, 0.8, 0.1], [0.9, 0.1, 0.8]],
             dtype=np.float32,
         )
         labels_q = np.array(["a", "b"])
@@ -115,9 +118,7 @@ class TestRetrievalHandComputed:
 
     def test_micro_average_across_queries(self):
         # Gallery [a, b, c]: query a finds a at rank 1, query b finds b at rank 2.
-        similarity = np.array(
-            [[0.9, 0.1, 0.0], [0.9, 0.8, 0.1]], dtype=np.float32
-        )
+        similarity = np.array([[0.9, 0.1, 0.0], [0.9, 0.8, 0.1]], dtype=np.float32)
         labels_q = np.array(["a", "b"])
         labels_g = np.array(["a", "b", "c"])
         metrics = evaluate_retrieval(similarity, labels_q, labels_g, recall_ks=(1, 2))
@@ -128,7 +129,7 @@ class TestRetrievalHandComputed:
     def test_minp_penalises_a_late_last_hit(self):
         """mINP uses the *last* relevant rank, so it separates models mAP saturates on."""
         # Gallery [a, a, b, b].
-        tight = np.array([[0.9, 0.8, 0.1, 0.05]], dtype=np.float32)   # both a's at ranks 1-2
+        tight = np.array([[0.9, 0.8, 0.1, 0.05]], dtype=np.float32)  # both a's at ranks 1-2
         spread = np.array([[0.9, 0.1, 0.8, 0.05]], dtype=np.float32)  # a's at ranks 1 and 3
         labels_q = np.array(["a"])
         labels_g = np.array(["a", "a", "b", "b"])
@@ -157,18 +158,14 @@ class TestSelfExclusion:
         # After excluding the exact same image, no other positive remains, so this
         # query is unusable — the function must say so rather than reporting 0.0.
         with pytest.raises(BenchmarkError):
-            evaluate_retrieval(
-                similarity, labels_q, labels_g, recall_ks=(1,), exclude_self=exclude
-            )
+            evaluate_retrieval(similarity, labels_q, labels_g, recall_ks=(1,), exclude_self=exclude)
 
     def test_exclusion_keeps_other_positives(self):
         similarity = np.array([[1.0, 0.9, 0.1]], dtype=np.float32)
         labels_q = np.array(["a"])
         labels_g = np.array(["a", "a", "b"])
         exclude = np.array([[True, False, False]])
-        metrics = evaluate_retrieval(
-            similarity, labels_q, labels_g, recall_ks=(1,), exclude_self=exclude
-        )
+        metrics = evaluate_retrieval(similarity, labels_q, labels_g, recall_ks=(1,), exclude_self=exclude)
         assert metrics.hit_at[1] == pytest.approx(1.0)
         # The remaining positive now sits at rank 1 because the self-match is masked out.
         assert metrics.mean_rank_of_first_match == pytest.approx(1.0)
@@ -200,9 +197,7 @@ class TestBootstrap:
         labels = np.array([f"id{i // 4}" for i in range(40)])
         similarity = embeddings @ embeddings.T
 
-        lower, upper = bootstrap_recall_ci(
-            similarity, labels, labels, k=1, samples=200, seed=1
-        )
+        lower, upper = bootstrap_recall_ci(similarity, labels, labels, k=1, samples=200, seed=1)
         assert lower <= upper
         metrics = evaluate_retrieval(similarity, labels, labels, recall_ks=(1,))
         assert lower - 1e-6 <= metrics.hit_at[1] <= upper + 1e-6
@@ -214,9 +209,7 @@ class TestBootstrap:
         labels = np.array([f"id{i // 3}" for i in range(24)])
         similarity = embeddings @ embeddings.T
 
-        stats = paired_bootstrap_delta(
-            similarity, similarity, labels, labels, k=1, samples=200, seed=2
-        )
+        stats = paired_bootstrap_delta(similarity, similarity, labels, labels, k=1, samples=200, seed=2)
         assert stats["observed_delta"] == pytest.approx(0.0)
         assert stats["ci95"][0] <= 0.0 <= stats["ci95"][1]
 
@@ -244,9 +237,7 @@ class TestVerification:
         # 0.9 clears all 3 negatives, 0.4 and 0.3 clear 2 each -> 7/9.
         assert metrics.roc_auc == pytest.approx(7 / 9)
         sklearn = pytest.importorskip("sklearn.metrics")
-        assert metrics.roc_auc == pytest.approx(
-            sklearn.roc_auc_score(labels, scores), abs=1e-9
-        )
+        assert metrics.roc_auc == pytest.approx(sklearn.roc_auc_score(labels, scores), abs=1e-9)
 
     def test_auc_matches_sklearn_on_ties(self):
         """Ties must be scored by average rank, not by array order."""
@@ -255,9 +246,7 @@ class TestVerification:
         scores = rng.integers(0, 3, size=400).astype(np.float64)  # many ties
         labels = rng.integers(0, 2, size=400)
         metrics = evaluate_verification(scores, labels)
-        assert metrics.roc_auc == pytest.approx(
-            sklearn.roc_auc_score(labels, scores), abs=1e-9
-        )
+        assert metrics.roc_auc == pytest.approx(sklearn.roc_auc_score(labels, scores), abs=1e-9)
 
     def test_tar_at_far_is_monotonic_in_far(self):
         rng = np.random.default_rng(11)

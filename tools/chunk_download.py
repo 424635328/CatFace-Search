@@ -33,7 +33,9 @@ class RangeUnsupportedError(RuntimeError):
     """The server ignored the Range header, so windowed transfer is impossible."""
 
 
-def probe(url: str, headers: dict[str, str], timeout: float = 30.0, attempts: int = 5) -> tuple[int | None, bool]:
+def probe(
+    url: str, headers: dict[str, str], timeout: float = 30.0, attempts: int = 5
+) -> tuple[int | None, bool]:
     """Return ``(total_size, accepts_ranges)`` using a 1-byte ranged GET.
 
     Retried, because a transient TLS failure must not be mistaken for "this server does
@@ -69,8 +71,7 @@ def probe(url: str, headers: dict[str, str], timeout: float = 30.0, attempts: in
         if attempt < attempts:
             time.sleep(min(2 * attempt, 10))
     raise RuntimeError(
-        f"Could not probe {url} after {attempts} attempts: "
-        f"{type(last_error).__name__}: {last_error}"
+        f"Could not probe {url} after {attempts} attempts: {type(last_error).__name__}: {last_error}"
     )
 
 
@@ -126,9 +127,7 @@ def chunk_download(
     expected = expect_bytes or total
     print(f"[chunk] server total={total} ranges={ranges_ok} expected={expected}", flush=True)
     if not ranges_ok:
-        raise RangeUnsupportedError(
-            f"{url} does not support Range requests; use tools/fetch.py instead"
-        )
+        raise RangeUnsupportedError(f"{url} does not support Range requests; use tools/fetch.py instead")
     if expected is None:
         raise RangeUnsupportedError("Could not determine the expected size; refusing to guess")
 
@@ -164,12 +163,13 @@ def chunk_download(
                     with part.open("r+b") as handle:
                         handle.truncate(have)
                 delay = min(1.5 * attempt, 15.0)
-                print(f"[chunk] window {have}-{end} attempt {attempt} failed: "
-                      f"{type(exc).__name__}: {exc}; retrying in {delay:.1f}s")
+                print(
+                    f"[chunk] window {have}-{end} attempt {attempt} failed: "
+                    f"{type(exc).__name__}: {exc}; retrying in {delay:.1f}s"
+                )
                 time.sleep(delay)
         else:
-            raise RuntimeError(f"window starting at {have} failed after "
-                               f"{max_retries_per_window} attempts")
+            raise RuntimeError(f"window starting at {have} failed after {max_retries_per_window} attempts")
 
         have = part.stat().st_size
         elapsed = max(time.perf_counter() - started, 1e-6)
@@ -198,8 +198,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--window-mb", type=float, default=8.0)
     parser.add_argument("--basic-auth", default="")
     """``user:password``, encoded into an Authorization header."""
-    parser.add_argument("--header", action="append", default=[],
-                        help="Extra header as 'Name: value' (repeatable)")
+    parser.add_argument(
+        "--header", action="append", default=[], help="Extra header as 'Name: value' (repeatable)"
+    )
     args = parser.parse_args(argv)
 
     headers: dict[str, str] = {}

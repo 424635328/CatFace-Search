@@ -85,20 +85,27 @@ def build_and_search(
         search = index.search(result.vectors, top_k=top_k)
         neighbours = []
         for identifier, score in zip(search.ids[0], search.scores[0]):
-            neighbours.append({
-                "image_id": identifier,
-                "identity": labels[id_to_position[identifier]] if identifier in id_to_position else None,
-                "path": records[id_to_position[identifier]].path if identifier in id_to_position else None,
-                "similarity": float(score),
-            })
+            neighbours.append(
+                {
+                    "image_id": identifier,
+                    "identity": labels[id_to_position[identifier]] if identifier in id_to_position else None,
+                    "path": records[id_to_position[identifier]].path
+                    if identifier in id_to_position
+                    else None,
+                    "similarity": float(score),
+                }
+            )
         report["query"] = {
             "path": str(query_path),
             "embedding_dim": int(result.vectors.shape[1]),
             "top_k": top_k,
             "neighbours": neighbours,
         }
-        LOGGER.info("Query returned %d neighbours (best %.4f)",
-                    len(neighbours), neighbours[0]["similarity"] if neighbours else float("nan"))
+        LOGGER.info(
+            "Query returned %d neighbours (best %.4f)",
+            len(neighbours),
+            neighbours[0]["similarity"] if neighbours else float("nan"),
+        )
     return report
 
 

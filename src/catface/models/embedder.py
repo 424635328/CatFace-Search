@@ -108,8 +108,11 @@ def _reconcile_pos_embed(network: Any, state: dict[str, Any]) -> dict[str, Any]:
         or target_grid * target_grid != target_patches
     ):
         # Not a square patch grid: drop it and let the model keep its own embedding.
-        LOGGER.warning("Cannot reconcile pos_embed shapes %s -> %s; keeping model weights",
-                       tuple(incoming.shape), tuple(target.shape))
+        LOGGER.warning(
+            "Cannot reconcile pos_embed shapes %s -> %s; keeping model weights",
+            tuple(incoming.shape),
+            tuple(target.shape),
+        )
         state = dict(state)
         state.pop(key, None)
         return state
@@ -124,8 +127,13 @@ def _reconcile_pos_embed(network: Any, state: dict[str, Any]) -> dict[str, Any]:
     resized = resized.permute(0, 2, 3, 1).reshape(1, target_grid * target_grid, embed_dim)
     state = dict(state)
     state[key] = torch.cat([head, resized], dim=1)
-    LOGGER.info("Resampled checkpoint pos_embed from %dx%d to %dx%d patches",
-                incoming_grid, incoming_grid, target_grid, target_grid)
+    LOGGER.info(
+        "Resampled checkpoint pos_embed from %dx%d to %dx%d patches",
+        incoming_grid,
+        incoming_grid,
+        target_grid,
+        target_grid,
+    )
     return state
 
 
@@ -188,8 +196,9 @@ class Embedder:
             module.to(self.device)
         self.head.module.to(self.device)
         if self.gem is not None:
-            self.gem.p = torch.nn.Parameter(self.gem.p.data.to(self.device),
-                                            requires_grad=self.gem.p.requires_grad)
+            self.gem.p = torch.nn.Parameter(
+                self.gem.p.data.to(self.device), requires_grad=self.gem.p.requires_grad
+            )
         return self
 
     def _network_modules(self) -> list[Any]:
@@ -249,8 +258,14 @@ class Embedder:
         if self.gem is not None:
             head_params.extend([p for p in self.gem.parameters() if p.requires_grad])
 
-        groups = [{"params": backbone_params, "lr": lr * backbone_lr_scale,
-                   "weight_decay": weight_decay, "name": "backbone"}]
+        groups = [
+            {
+                "params": backbone_params,
+                "lr": lr * backbone_lr_scale,
+                "weight_decay": weight_decay,
+                "name": "backbone",
+            }
+        ]
         # Biases and normalisation gains are conventionally not decayed.
         decay, no_decay = [], []
         for parameter in head_params:
@@ -289,8 +304,7 @@ class Embedder:
         images = self._to_device(images)
         output: BackboneOutput = self.backbone(images)
         if output.tokens is not None:
-            return pool_tokens(output.tokens, self.pooling,
-                               prefix_tokens=output.prefix_tokens, gem=self.gem)
+            return pool_tokens(output.tokens, self.pooling, prefix_tokens=output.prefix_tokens, gem=self.gem)
         return output.descriptor
 
     def forward(self, images: Any, labels: Any | None = None) -> Any:
@@ -389,14 +403,12 @@ class Embedder:
         payload = torch.load(source, map_location="cpu", weights_only=False)
         if not isinstance(payload, Mapping) or "embedder_config" not in payload:
             raise ArtifactError(
-                f"{source} is not a catface checkpoint (expected keys "
-                "'embedder_config' and 'state_dict')"
+                f"{source} is not a catface checkpoint (expected keys 'embedder_config' and 'state_dict')"
             )
         version = payload.get("version")
         if version != CHECKPOINT_VERSION:
             raise ArtifactError(
-                f"{source} has checkpoint version {version}, this build expects "
-                f"{CHECKPOINT_VERSION}"
+                f"{source} has checkpoint version {version}, this build expects {CHECKPOINT_VERSION}"
             )
         config = EmbedderConfig(**payload["embedder_config"])
         embedder = cls(config, num_classes=int(payload.get("num_classes", 0)), device=device)
@@ -427,8 +439,7 @@ class Embedder:
         unexpected: list[str] = []
         network = getattr(embedder.backbone, "network", None)
         if network is not None:
-            stripped = {k.split("backbone.", 1)[1]: v for k, v in rest.items()
-                        if k.startswith("backbone.")}
+            stripped = {k.split("backbone.", 1)[1]: v for k, v in rest.items() if k.startswith("backbone.")}
             # `pos_embed` has as many rows as the resolution used during the last forward
             # pass, so its shape can legitimately differ between the checkpoint and the
             # freshly built model. Resample the incoming grid instead of failing the load.
@@ -438,8 +449,7 @@ class Embedder:
             unexpected += list(result.unexpected_keys)
         features = getattr(embedder.backbone, "features", None)
         if features is not None:
-            stripped = {k.split("features.", 1)[1]: v for k, v in rest.items()
-                        if k.startswith("features.")}
+            stripped = {k.split("features.", 1)[1]: v for k, v in rest.items() if k.startswith("features.")}
             result = features.load_state_dict(stripped, strict=False)
             missing += list(result.missing_keys)
             unexpected += list(result.unexpected_keys)
@@ -473,7 +483,8 @@ class Embedder:
         """
         if skip_prefixes:
             state = {
-                key: value for key, value in state.items()
+                key: value
+                for key, value in state.items()
                 if not any(key.startswith(prefix) for prefix in skip_prefixes)
             }
         return self._load_split(self, state, strict=False)
@@ -505,7 +516,9 @@ class EmbeddingResult:
 TTATransform = Any
 
 
-def build_tta_transforms(image_size: int, views: Sequence[str] = ("identity", "hflip")) -> list[tuple[str, TTATransform]]:
+def build_tta_transforms(
+    image_size: int, views: Sequence[str] = ("identity", "hflip")
+) -> list[tuple[str, TTATransform]]:
     """Build the geometric views averaged for one descriptor.
 
     Only geometry is augmented: photometric augmentation would change the descriptor
@@ -527,15 +540,19 @@ def build_tta_transforms(image_size: int, views: Sequence[str] = ("identity", "h
         elif view == "hflip":
             transforms.append((view, T.Compose([*base, T.RandomHorizontalFlip(p=1.0)])))
         elif view == "scale_112":
-            transforms.append((
-                view,
-                T.Compose([
-                    T.Resize(int(image_size * 1.4), interpolation=T.InterpolationMode.BICUBIC),
-                    T.CenterCrop(image_size),
-                    T.ToTensor(),
-                    T.Normalize(mean=list(IMAGENET_MEAN), std=list(IMAGENET_STD)),
-                ]),
-            ))
+            transforms.append(
+                (
+                    view,
+                    T.Compose(
+                        [
+                            T.Resize(int(image_size * 1.4), interpolation=T.InterpolationMode.BICUBIC),
+                            T.CenterCrop(image_size),
+                            T.ToTensor(),
+                            T.Normalize(mean=list(IMAGENET_MEAN), std=list(IMAGENET_STD)),
+                        ]
+                    ),
+                )
+            )
         else:
             raise ModelError(f"Unknown TTA view: {view!r}")
     return transforms
@@ -621,13 +638,10 @@ def embed_records(
     vectors = np.vstack(stacked) if stacked else np.zeros((0, 0), dtype=np.float32)
     if len(kept_ids) != len(vectors):
         # Keep the contract explicit: ids and vectors are positionally aligned.
-        raise ArtifactError(
-            f"Embedding bookkeeping mismatch: {len(kept_ids)} ids for {len(vectors)} vectors"
-        )
+        raise ArtifactError(f"Embedding bookkeeping mismatch: {len(kept_ids)} ids for {len(vectors)} vectors")
     if was_training:
         embedder.train(True)
-    return EmbeddingResult(vectors=vectors, ids=kept_ids,
-                           tta_views=len(view_list), disagreed=disagreed)
+    return EmbeddingResult(vectors=vectors, ids=kept_ids, tta_views=len(view_list), disagreed=disagreed)
 
 
 __all__ = [

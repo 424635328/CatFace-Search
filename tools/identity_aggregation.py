@@ -37,8 +37,9 @@ from tools.embedding_cache import DEFAULT_CACHE_DIR, cache_key, load
 from tools.retrieval_research import l2_normalize, retrieval_metrics
 
 
-def identity_scores(similarity: np.ndarray, gallery_labels: list[str],
-                    identities: list[str], mode: str, k: int = 3) -> np.ndarray:
+def identity_scores(
+    similarity: np.ndarray, gallery_labels: list[str], identities: list[str], mode: str, k: int = 3
+) -> np.ndarray:
     """``(Q, I)`` scores, one column per identity.
 
     ``similarity`` is ``(Q, G)`` cosine. Masking rather than looping keeps this a handful of
@@ -80,9 +81,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
 
-    key = cache_key(args.checkpoint, args.manifest, protocol="cat_individuals",
-                    image_size=args.image_size, tta=("identity", "hflip"),
-                    extra={"queries_per_identity": 1, "seed": 1337})
+    key = cache_key(
+        args.checkpoint,
+        args.manifest,
+        protocol="cat_individuals",
+        image_size=args.image_size,
+        tta=("identity", "hflip"),
+        extra={"queries_per_identity": 1, "seed": 1337},
+    )
     payload = load(args.cache_dir, key)
     if payload is None:
         print(f"cache miss for {key}; run tools.retrieval_research first")
@@ -97,8 +103,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"queries {len(query_labels)}  gallery {len(gallery_labels)}  identities {len(identities)}")
     baseline = retrieval_metrics(similarity, query_labels, gallery_labels)
-    print(f"image-level baseline                hit@1={baseline['hit@1']:.4f} "
-          f"mINP={baseline['mINP']:.4f}")
+    print(f"image-level baseline                hit@1={baseline['hit@1']:.4f} mINP={baseline['mINP']:.4f}")
     print()
 
     rows = []
@@ -120,11 +125,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.out:
         out_path = Path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps({
-            "baseline_image_level": baseline,
-            "sweep": rows,
-            "best": best,
-        }, indent=2, ensure_ascii=False), encoding="utf-8")
+        out_path.write_text(
+            json.dumps(
+                {
+                    "baseline_image_level": baseline,
+                    "sweep": rows,
+                    "best": best,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         print(f"\nwritten to {out_path}")
     return 0
 

@@ -74,9 +74,7 @@ def embed_protocol(
     Returns:
         A cache holding the split, the query/gallery vectors and the self-match mask.
     """
-    split = build_identity_split(
-        records, queries_per_identity=queries_per_identity, seed=seed, name="tune"
-    )
+    split = build_identity_split(records, queries_per_identity=queries_per_identity, seed=seed, name="tune")
     started = time.perf_counter()
     query = embed_records(
         embedder, [r.path for r in split.query_records], image_size=image_size, batch_size=32
@@ -89,7 +87,9 @@ def embed_protocol(
     self_mask = np.array([[a == b for b in gallery.ids] for a in query.ids], dtype=bool)
     LOGGER.info(
         "embedded %d queries + %d gallery images in %.1fs",
-        len(query.ids), len(gallery.ids), time.perf_counter() - started,
+        len(query.ids),
+        len(gallery.ids),
+        time.perf_counter() - started,
     )
     return {
         "split": split,
@@ -106,8 +106,11 @@ def score_cached(cache: dict, config: PostprocessConfig) -> tuple[dict, dict]:
     split: Split = cache["split"]
     mask = cache["self_mask"]
     metrics = evaluate_retrieval(
-        similarity, split.query_labels, split.gallery_labels,
-        recall_ks=(1, 5, 10), exclude_self=mask if mask.any() else None,
+        similarity,
+        split.query_labels,
+        split.gallery_labels,
+        recall_ks=(1, 5, 10),
+        exclude_self=mask if mask.any() else None,
     )
     return metrics.to_dict(), {
         "queries": split.num_queries,
@@ -151,8 +154,7 @@ def candidate_configs(descriptor_dim: int = 0) -> list[PostprocessConfig]:
             configs.append(PostprocessConfig(whiten=mode, whiten_dim=dim))
             configs.append(PostprocessConfig(whiten=mode, whiten_dim=dim, dba=True, dba_k=3))
             configs.append(PostprocessConfig(whiten=mode, whiten_dim=dim, query_expansion="aqe"))
-            configs.append(PostprocessConfig(whiten=mode, whiten_dim=dim, dba=True,
-                                             query_expansion="aqe"))
+            configs.append(PostprocessConfig(whiten=mode, whiten_dim=dim, dba=True, query_expansion="aqe"))
     configs.append(PostprocessConfig(dba=True))
     configs.append(PostprocessConfig(query_expansion="aqe"))
 
@@ -176,12 +178,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--queries-per-identity", type=int, default=1)
     parser.add_argument("--seed", type=int, default=1337)
-    parser.add_argument("--select-metric", default="hit@1",
-                        help="Primary metric used to choose the configuration on val")
-    parser.add_argument("--tie-metric", default="mINP",
-                        help="Metric that breaks ties on the primary one. hit@1 saturates "
-                             "long before mINP does, so without a tie-break the selection "
-                             "degenerates to whichever candidate the grid listed first")
+    parser.add_argument(
+        "--select-metric", default="hit@1", help="Primary metric used to choose the configuration on val"
+    )
+    parser.add_argument(
+        "--tie-metric",
+        default="mINP",
+        help="Metric that breaks ties on the primary one. hit@1 saturates "
+        "long before mINP does, so without a tie-break the selection "
+        "degenerates to whichever candidate the grid listed first",
+    )
     parser.add_argument("--device", default=None)
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
@@ -189,7 +195,9 @@ def main(argv: list[str] | None = None) -> int:
     embedder = Embedder.load(args.checkpoint, device=args.device or "cuda")
     LOGGER.info(
         "loaded %s (backbone=%s pooled=%d projected=%d)",
-        args.checkpoint, embedder.config.backbone, embedder.backbone.feature_dim,
+        args.checkpoint,
+        embedder.config.backbone,
+        embedder.backbone.feature_dim,
         embedder.head.embedding_dim,
     )
     manifest_path, splits_dir = Path(args.manifest), Path(args.splits)
@@ -197,12 +205,8 @@ def main(argv: list[str] | None = None) -> int:
     test_records = load_split(manifest_path, splits_dir, "test")
 
     # Embed each protocol once; everything below is linear algebra on cached vectors.
-    val_cache = embed_protocol(
-        embedder, val_records, args.image_size, args.queries_per_identity, args.seed
-    )
-    test_cache = embed_protocol(
-        embedder, test_records, args.image_size, args.queries_per_identity, args.seed
-    )
+    val_cache = embed_protocol(embedder, val_records, args.image_size, args.queries_per_identity, args.seed)
+    test_cache = embed_protocol(embedder, test_records, args.image_size, args.queries_per_identity, args.seed)
 
     candidates = candidate_configs(int(val_cache["query"].shape[1]))
     results: list[dict] = []
@@ -212,12 +216,16 @@ def main(argv: list[str] | None = None) -> int:
         results.append({"config": config.describe(), "val": val_metrics, "protocol": protocol})
         LOGGER.info(
             "[%2d/%2d] %s -> val hit@1=%.4f mINP=%.4f",
-            index, len(candidates), json.dumps(config.describe(), sort_keys=True),
-            val_metrics.get("hit@1", float("nan")), val_metrics.get("mINP", float("nan")),
+            index,
+            len(candidates),
+            json.dumps(config.describe(), sort_keys=True),
+            val_metrics.get("hit@1", float("nan")),
+            val_metrics.get("mINP", float("nan")),
         )
     LOGGER.info(
         "grid of %d configurations scored in %.1fs (descriptors reused)",
-        len(candidates), time.perf_counter() - grid_started,
+        len(candidates),
+        time.perf_counter() - grid_started,
     )
 
     metric_key = args.select_metric
@@ -229,16 +237,22 @@ def main(argv: list[str] | None = None) -> int:
 
     results.sort(key=selection_key, reverse=True)
     best = results[0]
-    tied = sum(1 for entry in results
-               if entry["val"].get(metric_key, 0.0) == best["val"].get(metric_key, 0.0))
+    tied = sum(
+        1 for entry in results if entry["val"].get(metric_key, 0.0) == best["val"].get(metric_key, 0.0)
+    )
     LOGGER.info(
         "selected on val by %s (tie-broken by %s): %s",
-        metric_key, tie_key, json.dumps(best["config"], sort_keys=True),
+        metric_key,
+        tie_key,
+        json.dumps(best["config"], sort_keys=True),
     )
     if tied > 1:
         LOGGER.info(
-            "%d of %d candidates tie on %s; %s decides among them because it does not "
-            "saturate as early", tied, len(results), metric_key, tie_key,
+            "%d of %d candidates tie on %s; %s decides among them because it does not saturate as early",
+            tied,
+            len(results),
+            metric_key,
+            tie_key,
         )
 
     best_config = PostprocessConfig(**best["config"])
@@ -254,8 +268,11 @@ def main(argv: list[str] | None = None) -> int:
     }
     for label, config in (("untuned", baseline_config), ("selected", best_config)):
         test_metrics, test_protocol = score_cached(test_cache, config)
-        report[f"test_{label}"] = {"config": config.describe(), "metrics": test_metrics,
-                                   "protocol": test_protocol}
+        report[f"test_{label}"] = {
+            "config": config.describe(),
+            "metrics": test_metrics,
+            "protocol": test_protocol,
+        }
         LOGGER.info("test (%s): %s", label, json.dumps(test_metrics, sort_keys=True))
 
     untuned = report["test_untuned"]["metrics"]

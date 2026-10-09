@@ -26,8 +26,15 @@ from catface.models.embedder import Embedder, EmbedderConfig
 LOGGER = get_logger("tools.diagnose_amp")
 
 
-def run_steps(embedder: Embedder, device: str, amp: bool, steps: int = 200, batch: int = 32,
-              classes: int = 32, lr: float = 3e-4) -> dict:
+def run_steps(
+    embedder: Embedder,
+    device: str,
+    amp: bool,
+    steps: int = 200,
+    batch: int = 32,
+    classes: int = 32,
+    lr: float = 3e-4,
+) -> dict:
     """Run ``steps`` real training steps and report update accounting."""
     import torch
 
@@ -62,7 +69,8 @@ def run_steps(embedder: Embedder, device: str, amp: bool, steps: int = 200, batc
         losses.append(float(loss.detach()))
 
     changed = sum(
-        1 for name, p in embedder.backbone.network.named_parameters()
+        1
+        for name, p in embedder.backbone.network.named_parameters()
         if not torch.allclose(before[name], p.detach())
     )
     return {
@@ -88,9 +96,11 @@ def main() -> int:
     for amp in (False, True):
         torch.manual_seed(0)
         embedder = Embedder(
-            EmbedderConfig(backbone="dinov2_vits14", embedding_dim=64, pooling="auto",
-                           head="arcface", image_size=224),
-            num_classes=32, device=device,
+            EmbedderConfig(
+                backbone="dinov2_vits14", embedding_dim=64, pooling="auto", head="arcface", image_size=224
+            ),
+            num_classes=32,
+            device=device,
         )
         embedder.train(True)
         report = run_steps(embedder, device, amp=amp)
@@ -100,8 +110,10 @@ def main() -> int:
                 print(f"  {key}: {value}")
         print()
 
-    print("A non-zero 'scaler_skipped_steps' means AMP discarded that many updates, which "
-          "freezes the model while still reporting a finite loss.")
+    print(
+        "A non-zero 'scaler_skipped_steps' means AMP discarded that many updates, which "
+        "freezes the model while still reporting a finite loss."
+    )
     return 0
 
 

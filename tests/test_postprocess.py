@@ -21,7 +21,9 @@ from catface.eval.postprocess import (
 )
 
 
-def clustered_features(n_identities: int = 8, per_identity: int = 6, dim: int = 24, spread: float = 0.05, seed: int = 0):
+def clustered_features(
+    n_identities: int = 8, per_identity: int = 6, dim: int = 24, spread: float = 0.05, seed: int = 0
+):
     """Descriptors with a dominant shared direction, mimicking real face embeddings.
 
     The shared component is what whitening is supposed to suppress: it contributes to
@@ -207,7 +209,9 @@ class TestAlphaQueryExpansion:
     def test_empty_gallery_is_handled(self):
         features, _ = clustered_features()
         config = AlphaQueryExpansion(enabled=True, top_k=3)
-        expanded = alpha_query_expansion(features[:2], np.zeros((0, features.shape[1]), dtype=np.float32), config)
+        expanded = alpha_query_expansion(
+            features[:2], np.zeros((0, features.shape[1]), dtype=np.float32), config
+        )
         assert expanded.shape == (2, features.shape[1])
         assert np.isfinite(expanded).all()
 

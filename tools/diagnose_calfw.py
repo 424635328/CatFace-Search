@@ -96,7 +96,9 @@ def image_statistics(parquet_path: Path, limit: int = 300) -> dict:
     }
 
 
-def raw_pixel_scores(csv_path: Path, limit: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def raw_pixel_scores(
+    csv_path: Path, limit: int | None = None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Cosine similarity between downsampled raw pixels — the trivial baseline."""
     from PIL import Image
 
@@ -122,7 +124,9 @@ def raw_pixel_scores(csv_path: Path, limit: int | None = None) -> tuple[np.ndarr
     )
 
 
-def colour_histogram_scores(csv_path: Path, bins: int = 8, limit: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+def colour_histogram_scores(
+    csv_path: Path, bins: int = 8, limit: int | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     """Histogram-intersection baseline: one score per pair, plus the labels.
 
     A deliberately weak reference that can only see colour composition. A network that

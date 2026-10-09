@@ -80,8 +80,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the full benchmark suite")
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--protocol", default="cat_individuals")
-    parser.add_argument("--checkpoints", nargs="*", default=None,
-                        help="Explicit checkpoint paths; defaults to artifacts/train/*/best.pt")
+    parser.add_argument(
+        "--checkpoints",
+        nargs="*",
+        default=None,
+        help="Explicit checkpoint paths; defaults to artifacts/train/*/best.pt",
+    )
     parser.add_argument("--train-root", default="artifacts/train")
     parser.add_argument("--skip-zeroshot", action="store_true")
     parser.add_argument("--skip-postprocess", action="store_true")
@@ -107,8 +111,11 @@ def main(argv: list[str] | None = None) -> int:
         LOGGER.info("=== stage 1/3: zero-shot backbones ===")
         specs = [f"{name}={backbone}" for name, backbone in DEFAULT_ZERO_SHOT]
         report = run_benchmark(
-            config, model_specs=specs, protocol=args.protocol,
-            batch_size=args.batch_size, baseline=args.baseline,
+            config,
+            model_specs=specs,
+            protocol=args.protocol,
+            batch_size=args.batch_size,
+            baseline=args.baseline,
             tag=f"zeroshot-{args.protocol}",
         )
         suite["stages"]["zeroshot"] = {
@@ -162,10 +169,10 @@ def main(argv: list[str] | None = None) -> int:
         # Single row, untuned: keeps the suite usable when only a baseline is wanted.
         rows = [("postprocess-untuned", PostprocessConfig())]
     else:
-        rows = [("postprocess-untuned", PostprocessConfig()),
-                ("postprocess-selected", selected_config)]
-    rows = [(name, cfg) for name, cfg in rows
-            if not (args.skip_postprocess and name != "postprocess-untuned")]
+        rows = [("postprocess-untuned", PostprocessConfig()), ("postprocess-selected", selected_config)]
+    rows = [
+        (name, cfg) for name, cfg in rows if not (args.skip_postprocess and name != "postprocess-untuned")
+    ]
 
     final_results: list[dict] = []
     if not trained:
@@ -177,17 +184,26 @@ def main(argv: list[str] | None = None) -> int:
         baseline_name = specs[0].split("=")[0]
         for label, postprocess in rows:
             report = run_benchmark(
-                config, model_specs=specs, protocol=args.protocol,
-                batch_size=args.batch_size, baseline=baseline_name,
-                whiten=postprocess.whiten, whiten_dim=postprocess.whiten_dim,
+                config,
+                model_specs=specs,
+                protocol=args.protocol,
+                batch_size=args.batch_size,
+                baseline=baseline_name,
+                whiten=postprocess.whiten,
+                whiten_dim=postprocess.whiten_dim,
                 dba=postprocess.dba,
                 aqe=postprocess.query_expansion == "aqe",
                 tag=f"final-{label}-{args.protocol}",
             )
-            final_results.append({"label": label, "config": postprocess.describe(),
-                                  "results": report["results"],
-                                  "comparisons": report["comparisons"],
-                                  "table": report["table"]})
+            final_results.append(
+                {
+                    "label": label,
+                    "config": postprocess.describe(),
+                    "results": report["results"],
+                    "comparisons": report["comparisons"],
+                    "table": report["table"],
+                }
+            )
     suite["stages"]["final"] = final_results
 
     suite["wall_seconds"] = round(time.perf_counter() - started, 1)
@@ -208,7 +224,6 @@ def _checkpoint_backbone(path: Path) -> str:
 
     payload = torch.load(path, map_location="cpu", weights_only=False)
     return str(payload.get("embedder_config", {}).get("backbone", "dinov2_vits14"))
-
 
 
 if __name__ == "__main__":

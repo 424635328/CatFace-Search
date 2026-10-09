@@ -59,7 +59,9 @@ def synthetic_records(tmp_path: Path, identities: int = 6, per_identity: int = 4
 class TestPKBatchSampler:
     def _sampler(self, identities: int = 5, per_identity: int = 4, p: int = 3, k: int = 2) -> PKBatchSampler:
         labels = [f"id{i}" for i in range(identities) for _ in range(per_identity)]
-        return PKBatchSampler(labels, identities_per_batch=p, samples_per_identity=k, batches_per_epoch=4, seed=1)
+        return PKBatchSampler(
+            labels, identities_per_batch=p, samples_per_identity=k, batches_per_epoch=4, seed=1
+        )
 
     def test_batch_has_the_requested_shape(self):
         sampler = self._sampler()
@@ -129,15 +131,28 @@ class TestTrainerEndToEnd:
     def _setup(self, tmp_path, identities: int = 6, per_identity: int = 4):
         records = synthetic_records(tmp_path, identities=identities, per_identity=per_identity)
         config = EmbedderConfig(
-            backbone="timm", timm_name="resnet10t.c3_in1k",
-            embedding_dim=16, pooling="gap", head="arcface", image_size=32,
+            backbone="timm",
+            timm_name="resnet10t.c3_in1k",
+            embedding_dim=16,
+            pooling="gap",
+            head="arcface",
+            image_size=32,
         )
         embedder = Embedder(config, num_classes=identities, device="cpu")
         val_split = build_identity_split(records, queries_per_identity=1, seed=0, name="val")
         train_config = TrainConfigResolved(
-            epochs=2, batch_size=4, lr=1e-3, identities_per_batch=2, samples_per_identity=2,
-            val_every=1, num_workers=0, image_size=32, output_dir=tmp_path / "train",
-            amp=False, warmup_epochs=0, triplet_weight=0.3,
+            epochs=2,
+            batch_size=4,
+            lr=1e-3,
+            identities_per_batch=2,
+            samples_per_identity=2,
+            val_every=1,
+            num_workers=0,
+            image_size=32,
+            output_dir=tmp_path / "train",
+            amp=False,
+            warmup_epochs=0,
+            triplet_weight=0.3,
         )
         return records, embedder, val_split, train_config
 
@@ -208,7 +223,9 @@ class TestTrainerEndToEnd:
         """
         records, embedder, val_split, config = self._setup(tmp_path, identities=8, per_identity=5)
         embedder.eval()
-        hit_at_1, map_at_5, identities = Trainer(embedder, records, val_split, config, device="cpu").validate()
+        hit_at_1, map_at_5, identities = Trainer(
+            embedder, records, val_split, config, device="cpu"
+        ).validate()
         assert identities == 8
         # hit@1 is a share of queries, so it must land on a multiple of 1/8.
         assert abs(hit_at_1 * 8 - round(hit_at_1 * 8)) < 1e-6, (

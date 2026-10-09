@@ -111,9 +111,7 @@ def fetch(
                     part.unlink(missing_ok=True)
                     offset = 0
                     continue
-                total = expected or (
-                    int(response.headers.get("Content-Length", "0")) + offset
-                )
+                total = expected or (int(response.headers.get("Content-Length", "0")) + offset)
                 mode = "ab" if offset else "wb"
                 written = offset
                 started = time.perf_counter()
@@ -137,15 +135,12 @@ def fetch(
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
             sys.stdout.write("\n")
             print(f"[fetch] attempt {attempt}/{max_attempts} failed: {exc}")
-            time.sleep(min(2 ** attempt, 20))
+            time.sleep(min(2**attempt, 20))
             continue
 
         size = part.stat().st_size
         if expected and size != expected:
-            print(
-                f"[fetch] incomplete: {size} of {expected} bytes "
-                f"(short by {expected - size}); resuming"
-            )
+            print(f"[fetch] incomplete: {size} of {expected} bytes (short by {expected - size}); resuming")
             continue
         break
 
@@ -155,8 +150,7 @@ def fetch(
     size = part.stat().st_size
     if expected and size != expected:
         raise TruncatedDownloadError(
-            f"{destination.name} is {size} bytes but {expected} were expected after "
-            f"{max_attempts} attempts"
+            f"{destination.name} is {size} bytes but {expected} were expected after {max_attempts} attempts"
         )
 
     part.replace(destination)

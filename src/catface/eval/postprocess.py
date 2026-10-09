@@ -85,9 +85,7 @@ class WhiteningTransform:
             singular = np.sqrt(eigenvalues)
             keep = dim if dim > 0 else min(n_samples, n_dims)
             keep = min(keep, vectors.shape[1])
-            components = (vectors[:, :keep].T @ centered) / np.maximum(
-                singular[:keep, None], 1e-12
-            )
+            components = (vectors[:, :keep].T @ centered) / np.maximum(singular[:keep, None], 1e-12)
         else:
             covariance = (centered.T @ centered) / max(n_samples - 1, 1)
             eigenvalues, vectors = np.linalg.eigh(covariance)

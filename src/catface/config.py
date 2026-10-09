@@ -82,14 +82,13 @@ class _ConfigSection:
 def _require_keys(data: Mapping[str, Any], allowed: Sequence[str], where: str) -> None:
     unknown = sorted(set(data) - set(allowed))
     if unknown:
-        raise ConfigError(
-            f"Unknown key(s) {unknown} in {where}. Allowed: {sorted(allowed)}"
-        )
+        raise ConfigError(f"Unknown key(s) {unknown} in {where}. Allowed: {sorted(allowed)}")
 
 
 @dataclass
 class DataConfig(_ConfigSection):
     """Where images live and how crops are produced."""
+
     root: Path = Path("data")
     manifest: Path = Path("data/manifests")
     crops_dir: Path = Path("data/faces")
@@ -160,9 +159,7 @@ class ModelConfig(_ConfigSection):
         if isinstance(self.pretrained, str):
             self.pretrained = _resolve(self.pretrained)
         if self.backbone not in VALID_BACKBONES:
-            raise ConfigError(
-                f"model.backbone must be one of {VALID_BACKBONES}, got {self.backbone!r}"
-            )
+            raise ConfigError(f"model.backbone must be one of {VALID_BACKBONES}, got {self.backbone!r}")
         if self.backbone == "timm" and not self.timm_name:
             raise ConfigError("model.timm_name is required when backbone == 'timm'")
         if self.pooling not in VALID_POOLING:
@@ -318,9 +315,7 @@ class PipelineConfig(_ConfigSection):
         if not hasattr(self, "_base_dir"):
             object.__setattr__(self, "_base_dir", Path.cwd())
         self.output_dir = _resolve(self.output_dir)
-        if self.device != "auto" and not (
-            self.device == "cpu" or self.device.startswith("cuda")
-        ):
+        if self.device != "auto" and not (self.device == "cpu" or self.device.startswith("cuda")):
             raise ConfigError(f"Unsupported device: {self.device!r}")
 
     # -- construction -------------------------------------------------------
@@ -329,13 +324,23 @@ class PipelineConfig(_ConfigSection):
         """Build a validated config from a plain mapping."""
         _require_keys(
             data,
-            ("run_name", "seed", "device", "log_level", "output_dir",
-             "data", "model", "train", "eval", "index", "extra"),
+            (
+                "run_name",
+                "seed",
+                "device",
+                "log_level",
+                "output_dir",
+                "data",
+                "model",
+                "train",
+                "eval",
+                "index",
+                "extra",
+            ),
             "root",
         )
         payload: dict[str, Any] = {
-            k: v for k, v in data.items()
-            if k not in ("data", "model", "train", "eval", "index")
+            k: v for k, v in data.items() if k not in ("data", "model", "train", "eval", "index")
         }
         if "output_dir" in payload:
             payload["output_dir"] = _resolve(payload["output_dir"])

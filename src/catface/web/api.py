@@ -21,6 +21,7 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -80,11 +81,16 @@ class TimingModel(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    predicted_identity: str | None
-    top_similarity: float | None
-    margin: float | None = Field(
+    # ``Optional[...]`` rather than ``| None``: pydantic evaluates field annotations at runtime, so
+    # on Python 3.9 the PEP 604 form raises "unsupported operand type(s) for |: 'type' and
+    # 'NoneType'". ``from __future__ import annotations`` does not help, because the annotation is
+    # deliberately resolved rather than merely stored. CI caught this on the 3.9 job.
+    predicted_identity: Optional[str] = None
+    top_similarity: Optional[float] = None
+    margin: Optional[float] = Field(
+        default=None,
         description="top-1 similarity minus the best different-identity similarity; the honest "
-        "confidence signal, since every measured failure sat on a near tie"
+        "confidence signal, since every measured failure sat on a near tie",
     )
     matches: list[MatchModel]
     descriptor_dim: int
@@ -100,7 +106,7 @@ class StatusResponse(BaseModel):
     gallery_images: int
     gallery_identities: int
     descriptor_dim: int
-    backend: str | None
+    backend: Optional[str] = None
     tta: list[str]
     load_seconds: float
     version: str

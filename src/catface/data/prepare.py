@@ -56,9 +56,18 @@ LOGGER = get_logger("data.prepare")
 
 #: The 12 cat breeds in OIID, keyed by breed id from ``list.txt``.
 OIID_CAT_BREEDS = {
-    1: "Abyssinian", 2: "Bengal", 3: "Birman", 4: "Bombay", 5: "British_Shorthair",
-    6: "Egyptian_Mau", 7: "Maine_Coon", 8: "Persian", 9: "Ragdoll",
-    10: "Russian_Blue", 11: "Siamese", 12: "Sphynx",
+    1: "Abyssinian",
+    2: "Bengal",
+    3: "Birman",
+    4: "Bombay",
+    5: "British_Shorthair",
+    6: "Egyptian_Mau",
+    7: "Maine_Coon",
+    8: "Persian",
+    9: "Ragdoll",
+    10: "Russian_Blue",
+    11: "Siamese",
+    12: "Sphynx",
 }
 
 
@@ -152,9 +161,7 @@ class _CropWriter:
         filename = f"{source}__{image_id.replace('/', '_')}.jpg"
         path = self.output_dir / filename
         # Encode deterministically so re-running preparation is idempotent.
-        ok = self._cv2.imwrite(
-            str(path), tile, [int(self._cv2.IMWRITE_JPEG_QUALITY), self.quality]
-        )
+        ok = self._cv2.imwrite(str(path), tile, [int(self._cv2.IMWRITE_JPEG_QUALITY), self.quality])
         if not ok:
             self.stats.rejected["encode_failed"] += 1
             return None
@@ -349,7 +356,9 @@ def prepare_oiid_from_annotations(
 # ---------------------------------------------------------------------------
 # Kaggle Cat Individual Images
 # ---------------------------------------------------------------------------
-def infer_folder_identities(root: Path, extensions: Sequence[str] = (".jpg", ".jpeg", ".png", ".bmp", ".webp")) -> list[tuple[Path, str]]:
+def infer_folder_identities(
+    root: Path, extensions: Sequence[str] = (".jpg", ".jpeg", ".png", ".bmp", ".webp")
+) -> list[tuple[Path, str]]:
     """Infer ``(path, identity)`` from a directory tree.
 
     Two layouts are recognised, and the decision is made per file so a mixed tree still
@@ -402,7 +411,9 @@ def prepare_cat_individuals(
         counts[identity] += 1
     LOGGER.info(
         "Cat-individuals: %d images across %d identities (median %d images/identity)",
-        len(pairs), len(counts), int(np.median(list(counts.values()))),
+        len(pairs),
+        len(counts),
+        int(np.median(list(counts.values()))),
     )
 
     records: list[FaceRecord] = []
@@ -443,9 +454,7 @@ def build_manifest(
 ) -> Manifest:
     """Dispatch to a source adapter by name."""
     if source not in IDENTITY_SOURCE_ADAPTERS:
-        raise DataError(
-            f"Unknown source adapter {source!r}. Known: {sorted(IDENTITY_SOURCE_ADAPTERS)}"
-        )
+        raise DataError(f"Unknown source adapter {source!r}. Known: {sorted(IDENTITY_SOURCE_ADAPTERS)}")
     return IDENTITY_SOURCE_ADAPTERS[source](writer=writer, **kwargs)
 
 
@@ -490,9 +499,7 @@ def finalise_manifest(
         return report
 
     try:
-        assignment = assign_identity_splits(
-            labeled, train_ratio=train_ratio, val_ratio=val_ratio, seed=seed
-        )
+        assignment = assign_identity_splits(labeled, train_ratio=train_ratio, val_ratio=val_ratio, seed=seed)
     except DataError as exc:
         report["split"] = {"error": str(exc)}
         return report

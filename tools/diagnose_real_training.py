@@ -36,29 +36,46 @@ def main() -> int:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     manifest_path = Path("data/manifests/cat_individuals_manifest.jsonl")
     splits_dir = Path("data/manifests/cat_individuals_splits")
-    ids = {line.strip() for line in (splits_dir / "train.txt").read_text(encoding="utf-8").splitlines() if line.strip()}
+    ids = {
+        line.strip()
+        for line in (splits_dir / "train.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
     records = [r for r in Manifest.load(manifest_path) if r.image_id in ids]
     identities = sorted({r.identity for r in records})
     print(f"corpus: {len(records)} images / {len(identities)} identities")
 
     class_to_index = {name: index for index, name in enumerate(identities)}
     dataset = IdentityImageDataset(
-        [r.path for r in records], [class_to_index[r.identity] for r in records],
-        image_size=224, train=True,
+        [r.path for r in records],
+        [class_to_index[r.identity] for r in records],
+        image_size=224,
+        train=True,
     )
     sampler = PKBatchSampler(
-        [r.identity for r in records], identities_per_batch=8, samples_per_identity=4,
-        batches_per_epoch=max(1, len(records) // 32), seed=1337,
+        [r.identity for r in records],
+        identities_per_batch=8,
+        samples_per_identity=4,
+        batches_per_epoch=max(1, len(records) // 32),
+        seed=1337,
     )
     loader = torch.utils.data.DataLoader(
         dataset, batch_sampler=sampler, num_workers=4, pin_memory=True, persistent_workers=True
     )
 
     embedder = Embedder(
-        EmbedderConfig(backbone="dinov2_vitb14", embedding_dim=512, pooling="auto",
-                       head="arcface", head_margin=0.35, head_scale=64.0, image_size=224,
-                       gradient_checkpointing=True),
-        num_classes=len(identities), device=device,
+        EmbedderConfig(
+            backbone="dinov2_vitb14",
+            embedding_dim=512,
+            pooling="auto",
+            head="arcface",
+            head_margin=0.35,
+            head_scale=64.0,
+            image_size=224,
+            gradient_checkpointing=True,
+        ),
+        num_classes=len(identities),
+        device=device,
     )
     embedder.train(True)
     optimizer = torch.optim.AdamW(
@@ -94,7 +111,9 @@ def main() -> int:
             if flag.startswith("--clip="):
                 clip_norm = float(flag.split("=", 1)[1])
         norm_before = float(torch.nn.utils.clip_grad_norm_(embedder.parameters(), clip_norm))
-        norm_after = float(sum(p.grad.norm() ** 2 for p in embedder.parameters() if p.grad is not None) ** 0.5)
+        norm_after = float(
+            sum(p.grad.norm() ** 2 for p in embedder.parameters() if p.grad is not None) ** 0.5
+        )
         scaler.step(optimizer)
         scaler.update()
 
@@ -104,9 +123,11 @@ def main() -> int:
                 similarity = embeddings @ embeddings.t()
                 off_diagonal = similarity[~torch.eye(len(embeddings), dtype=torch.bool, device=device)]
                 lr_now = optimizer.param_groups[0]["lr"]
-            print(f"{step:4d} | {loss.item():9.3f} | {norm_before:9.3f} | {norm_after:10.3f} | "
-                  f"{off_diagonal.mean().item():13.4f} | {embeddings.std(dim=0).mean().item():7.4f} | "
-                  f"{logits.std(dim=1).mean().item():9.4f} | {lr_now:.2e}")
+            print(
+                f"{step:4d} | {loss.item():9.3f} | {norm_before:9.3f} | {norm_after:10.3f} | "
+                f"{off_diagonal.mean().item():13.4f} | {embeddings.std(dim=0).mean().item():7.4f} | "
+                f"{logits.std(dim=1).mean().item():9.4f} | {lr_now:.2e}"
+            )
 
     print("\nReading:")
     print("  cos_diff_mean near 1.0  -> every image maps to nearly the same vector (collapse)")

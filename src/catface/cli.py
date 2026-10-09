@@ -34,16 +34,15 @@ def build_parser() -> argparse.ArgumentParser:
         description="Cat-face identity retrieval: prepare, train, benchmark, index.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--config", type=Path, default=None,
-                        help="YAML config file (defaults are used when omitted)")
-    parser.add_argument("--data-root", type=Path, default=None,
-                        help="Override data.root, the base directory for all corpora")
-    parser.add_argument("--output-dir", type=Path, default=None,
-                        help="Override output_dir for artifacts")
-    parser.add_argument("--log-level", default="INFO",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR"])
-    parser.add_argument("--json-logs", action="store_true",
-                        help="Emit machine-readable JSON log lines")
+    parser.add_argument(
+        "--config", type=Path, default=None, help="YAML config file (defaults are used when omitted)"
+    )
+    parser.add_argument(
+        "--data-root", type=Path, default=None, help="Override data.root, the base directory for all corpora"
+    )
+    parser.add_argument("--output-dir", type=Path, default=None, help="Override output_dir for artifacts")
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument("--json-logs", action="store_true", help="Emit machine-readable JSON log lines")
     parser.add_argument("--version", action="store_true", help="Print the version and exit")
 
     sub = parser.add_subparsers(dest="command", required=False)
@@ -53,28 +52,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- acquire -----------------------------------------------------------
     acquire = sub.add_parser("acquire", help="Download and verify datasets")
-    acquire.add_argument("--datasets", nargs="*", default=None,
-                         help="Dataset keys; all known datasets when omitted")
+    acquire.add_argument(
+        "--datasets", nargs="*", default=None, help="Dataset keys; all known datasets when omitted"
+    )
     acquire.add_argument("--no-extract", action="store_true")
 
     # -- prepare -----------------------------------------------------------
     prepare = sub.add_parser("prepare", help="Crop faces and build the manifest")
-    prepare.add_argument("--source", default="oiid_cat",
-                         choices=["oiid_cat", "cat_individuals"])
-    prepare.add_argument("--force", action="store_true",
-                         help="Re-crop even when crops already exist")
+    prepare.add_argument("--source", default="oiid_cat", choices=["oiid_cat", "cat_individuals"])
+    prepare.add_argument("--force", action="store_true", help="Re-crop even when crops already exist")
 
     # -- verify ------------------------------------------------------------
     verify = sub.add_parser(
         "verify",
         help="Benchmark same/different pair verification (AUC, EER, TAR@FAR)",
     )
-    verify.add_argument("--models", nargs="+", required=True,
-                        help="Model specs as name=backbone[:checkpoint]")
-    verify.add_argument("--pairs", required=True,
-                        help="Pairs CSV with columns path_a,path_b,label")
-    verify.add_argument("--limit", type=int, default=None,
-                        help="Use only the first N pairs")
+    verify.add_argument(
+        "--models", nargs="+", required=True, help="Model specs as name=backbone[:checkpoint]"
+    )
+    verify.add_argument("--pairs", required=True, help="Pairs CSV with columns path_a,path_b,label")
+    verify.add_argument("--limit", type=int, default=None, help="Use only the first N pairs")
     verify.add_argument("--batch-size", type=int, default=64)
     verify.add_argument("--device", default=None)
 
@@ -83,8 +80,9 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--backbone", default=None, help="Override model.backbone")
     train.add_argument("--epochs", type=int, default=None)
     train.add_argument("--lr", type=float, default=None)
-    train.add_argument("--loss", default=None,
-                       choices=["arcface", "cosface", "subcenter_arcface", "triplet", "ce"])
+    train.add_argument(
+        "--loss", default=None, choices=["arcface", "cosface", "subcenter_arcface", "triplet", "ce"]
+    )
     train.add_argument("--identities-per-batch", type=int, default=None)
     train.add_argument("--samples-per-identity", type=int, default=None)
     train.add_argument("--device", default=None)
@@ -92,13 +90,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- benchmark ---------------------------------------------------------
     bench = sub.add_parser("benchmark", help="Compare model configurations")
-    bench.add_argument("--models", nargs="+", required=True,
-                       help=("Model specs as name=backbone[:checkpoint]. Examples: "
-                             "baseline=resnet50  dino=dinov2_vitb14  "
-                             "finetuned=dinov2_vitb14:artifacts/train/best.pt"))
-    bench.add_argument("--protocol", default="oiid_identity",
-                       choices=["oiid_identity", "cat_individuals", "cross_dataset"],
-                       help="Which query/gallery protocol to evaluate")
+    bench.add_argument(
+        "--models",
+        nargs="+",
+        required=True,
+        help=(
+            "Model specs as name=backbone[:checkpoint]. Examples: "
+            "baseline=resnet50  dino=dinov2_vitb14  "
+            "finetuned=dinov2_vitb14:artifacts/train/best.pt"
+        ),
+    )
+    bench.add_argument(
+        "--protocol",
+        default="oiid_identity",
+        choices=["oiid_identity", "cat_individuals", "cross_dataset"],
+        help="Which query/gallery protocol to evaluate",
+    )
     bench.add_argument("--queries-per-identity", type=int, default=1)
     bench.add_argument("--max-gallery-per-identity", type=int, default=None)
     bench.add_argument("--whiten", default="none", choices=["none", "pca", "pcaw"])
@@ -114,8 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     index = sub.add_parser("index", help="Build or query a production vector index")
     index.add_argument("--checkpoint", required=True)
     index.add_argument("--manifest", required=True, help="Manifest whose records are indexed")
-    index.add_argument("--kind", default="flat_ip",
-                       choices=["flat_ip", "ivf_pq", "hnsw", "numpy"])
+    index.add_argument("--kind", default="flat_ip", choices=["flat_ip", "ivf_pq", "hnsw", "numpy"])
     index.add_argument("--query", default=None, help="Image path to search for")
     index.add_argument("--top-k", type=int, default=10)
     index.add_argument("--device", default=None)

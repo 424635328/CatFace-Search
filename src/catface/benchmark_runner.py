@@ -63,9 +63,7 @@ class ModelSpec:
     @classmethod
     def parse(cls, spec: str) -> ModelSpec:
         if "=" not in spec:
-            raise DataError(
-                f"Model spec {spec!r} must look like name=backbone[:checkpoint]"
-            )
+            raise DataError(f"Model spec {spec!r} must look like name=backbone[:checkpoint]")
         name, _, rest = spec.partition("=")
         name = name.strip()
         if not name:
@@ -114,8 +112,7 @@ def resolve_protocol(
         manifest_path = manifest_dir / "oiid_cat_manifest.jsonl"
         if not manifest_path.is_file():
             raise DataError(
-                f"OIID manifest missing at {manifest_path}. Run "
-                "`catface prepare --source oiid_cat` first."
+                f"OIID manifest missing at {manifest_path}. Run `catface prepare --source oiid_cat` first."
             )
         split_dir = manifest_dir / "oiid_cat_splits"
         test_file = split_dir / "test.txt"
@@ -133,11 +130,13 @@ def resolve_protocol(
             seed=config.seed,
             max_gallery_per_identity=max_gallery_per_identity,
         )
-        metadata.update({
-            "corpus": "Oxford-IIIT Pet cats (test identities)",
-            "crop": "oiid annotated head box",
-            "training_overlap": "none — identities are disjoint from training",
-        })
+        metadata.update(
+            {
+                "corpus": "Oxford-IIIT Pet cats (test identities)",
+                "crop": "oiid annotated head box",
+                "training_overlap": "none — identities are disjoint from training",
+            }
+        )
         return split, metadata
 
     if protocol == "cat_individuals":
@@ -156,11 +155,13 @@ def resolve_protocol(
             seed=config.seed,
             max_gallery_per_identity=max_gallery_per_identity,
         )
-        metadata.update({
-            "corpus": "Kaggle Cat Individual Images",
-            "crop": "whole image (corpus ships no face boxes)",
-            "training_overlap": "none — disjoint from OIID training identities",
-        })
+        metadata.update(
+            {
+                "corpus": "Kaggle Cat Individual Images",
+                "crop": "whole image (corpus ships no face boxes)",
+                "training_overlap": "none — disjoint from OIID training identities",
+            }
+        )
         return split, metadata
 
     if protocol == "cross_dataset":
@@ -193,11 +194,13 @@ def resolve_protocol(
             manifest_dir / "_cross_gallery.jsonl",
             name="cross_dataset",
         )
-        metadata.update({
-            "corpus": "query=OIID test, gallery=Cat-individuals",
-            "shared_identities": len(shared),
-            "training_overlap": "none",
-        })
+        metadata.update(
+            {
+                "corpus": "query=OIID test, gallery=Cat-individuals",
+                "shared_identities": len(shared),
+                "training_overlap": "none",
+            }
+        )
         return split, metadata
 
     raise DataError(f"Unknown protocol: {protocol!r}")
@@ -220,8 +223,7 @@ def run_benchmark(
     device: str | None = None,
 ) -> dict[str, Any]:
     """Evaluate every model spec on one protocol and write the report."""
-    specs = [spec if isinstance(spec, ModelSpec) else ModelSpec.parse(spec)
-             for spec in model_specs]
+    specs = [spec if isinstance(spec, ModelSpec) else ModelSpec.parse(spec) for spec in model_specs]
     names = [s.name for s in specs]
     if len(set(names)) != len(names):
         raise DataError(f"Model names must be unique, got {names}")
@@ -229,26 +231,34 @@ def run_benchmark(
     split, protocol_metadata = resolve_protocol(
         config, protocol, queries_per_identity, max_gallery_per_identity
     )
-    protocol_metadata.update({
-        "queries": split.num_queries,
-        "gallery": split.num_gallery,
-        "identities_in_gallery": len(set(split.gallery_labels.tolist())),
-        "split_sha1": sha1_of_split(split),
-        "tta_views": list(config.model.tta),
-        "image_size": image_size or config.model.image_size,
-        "batch_size": batch_size,
-        "postprocess": PostprocessConfig(whiten=whiten, whiten_dim=whiten_dim,
-                                         dba=dba, query_expansion="aqe" if aqe else "none").describe(),
-        "seed": config.seed,
-    })
+    protocol_metadata.update(
+        {
+            "queries": split.num_queries,
+            "gallery": split.num_gallery,
+            "identities_in_gallery": len(set(split.gallery_labels.tolist())),
+            "split_sha1": sha1_of_split(split),
+            "tta_views": list(config.model.tta),
+            "image_size": image_size or config.model.image_size,
+            "batch_size": batch_size,
+            "postprocess": PostprocessConfig(
+                whiten=whiten, whiten_dim=whiten_dim, dba=dba, query_expansion="aqe" if aqe else "none"
+            ).describe(),
+            "seed": config.seed,
+        }
+    )
     LOGGER.info(
         "Protocol %s: %d queries / %d gallery over %d identities (split %s)",
-        protocol, split.num_queries, split.num_gallery,
-        protocol_metadata["identities_in_gallery"], protocol_metadata["split_sha1"][:12],
+        protocol,
+        split.num_queries,
+        split.num_gallery,
+        protocol_metadata["identities_in_gallery"],
+        protocol_metadata["split_sha1"][:12],
     )
 
     postprocess = PostprocessConfig(
-        whiten=whiten, whiten_dim=whiten_dim, dba=dba,
+        whiten=whiten,
+        whiten_dim=whiten_dim,
+        dba=dba,
         query_expansion="aqe" if aqe else "none",
     )
 
@@ -289,7 +299,9 @@ def run_benchmark(
                 spec.name,
                 result.retrieval.recall_at.get(1, float("nan")) if result.retrieval else float("nan"),
                 result.retrieval.map_at.get(5, float("nan")) if result.retrieval else float("nan"),
-                result.descriptor_dim, result.embedding_time_s, result.images_embedded,
+                result.descriptor_dim,
+                result.embedding_time_s,
+                result.images_embedded,
             )
 
         # Release the model before building the next one (6 GB GPUs cannot hold two).
@@ -367,8 +379,7 @@ def run_verification(
 
     # Accept both `ModelSpec` objects and their string form, so callers cannot trip
     # over the difference.
-    specs = [spec if isinstance(spec, ModelSpec) else ModelSpec.parse(spec)
-             for spec in model_specs]
+    specs = [spec if isinstance(spec, ModelSpec) else ModelSpec.parse(spec) for spec in model_specs]
 
     if not pairs_csv.is_file():
         raise DataError(f"Pairs CSV not found: {pairs_csv}")
@@ -410,7 +421,9 @@ def run_verification(
         if usable < len(rows):
             LOGGER.warning(
                 "%s: only %d of %d pairs were readable; scoring the usable subset",
-                spec.name, usable, len(rows),
+                spec.name,
+                usable,
+                len(rows),
             )
         vectors_a, vectors_b = embedded_a.vectors[:usable], embedded_b.vectors[:usable]
         pair_labels = labels[:usable]
@@ -432,7 +445,9 @@ def run_verification(
         )
         LOGGER.info(
             "%s: AUC=%.4f EER=%.4f TAR@FAR=1e-2:%.4f",
-            spec.name, metrics.roc_auc, metrics.eer,
+            spec.name,
+            metrics.roc_auc,
+            metrics.eer,
             metrics.tar_at_far.get(0.01, float("nan")),
         )
 

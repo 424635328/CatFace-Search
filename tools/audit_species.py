@@ -38,9 +38,7 @@ def human_face_rate(
     """Fraction of images in which a human face is detected."""
     import cv2
 
-    detector = cv2.FaceDetectorYN.create(
-        str(model_path), "", (320, 320), score_threshold, 0.3, 5000
-    )
+    detector = cv2.FaceDetectorYN.create(str(model_path), "", (320, 320), score_threshold, 0.3, 5000)
     detected = 0
     probabilities: list[float] = []
     failures = 0
@@ -86,7 +84,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.directory:
         root = Path(args.directory)
-        paths = sorted(str(p) for p in root.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"})
+        paths = sorted(
+            str(p) for p in root.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}
+        )
     else:
         with Path(args.csv).open(encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))

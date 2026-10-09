@@ -111,7 +111,9 @@ class TestFingerprint:
 
     def test_fingerprint_changes_with_semantics(self):
         a = PipelineConfig()
-        b = PipelineConfig.from_mapping({**a.to_mapping(), "model": {**a.model.to_dict(), "backbone": "resnet50"}})
+        b = PipelineConfig.from_mapping(
+            {**a.to_mapping(), "model": {**a.model.to_dict(), "backbone": "resnet50"}}
+        )
         assert a.fingerprint() != b.fingerprint()
 
     def test_fingerprint_ignores_output_paths(self):

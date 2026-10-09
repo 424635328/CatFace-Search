@@ -186,14 +186,16 @@ def worker(
                         print(
                             f"[parallel] w{worker_id}: subdividing {start}-{current_end} "
                             f"after {max_chunk_retries} failures",
-                            file=sys.stderr, flush=True,
+                            file=sys.stderr,
+                            flush=True,
                         )
                         continue
                     stats.fail()
                     print(
                         f"[parallel] w{worker_id}: giving up on {start}-{current_end}: "
                         f"{type(exc).__name__}: {exc}",
-                        file=sys.stderr, flush=True,
+                        file=sys.stderr,
+                        flush=True,
                     )
                     break
                 time.sleep(min(1.5 * attempt, 10))
@@ -296,8 +298,18 @@ def parallel_download(
     threads = [
         threading.Thread(
             target=worker,
-            args=(index, tasks, url, headers, parts_dir, stats, chunk_bytes,
-                  timeout, max_chunk_retries, stop),
+            args=(
+                index,
+                tasks,
+                url,
+                headers,
+                parts_dir,
+                stats,
+                chunk_bytes,
+                timeout,
+                max_chunk_retries,
+                stop,
+            ),
             daemon=True,
             name=f"dl-{index}",
         )
@@ -382,8 +394,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--url", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--expect-bytes", type=int, default=0)
-    parser.add_argument("--workers", type=int, default=12,
-                        help="Parallel connections; the per-connection cap makes this the main lever")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=12,
+        help="Parallel connections; the per-connection cap makes this the main lever",
+    )
     parser.add_argument("--chunk-mb", type=float, default=16.0)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--basic-auth", default="")

@@ -85,9 +85,7 @@ OXFORD_PETS = DatasetSpec(
     ),
     homepage="https://www.robots.ox.ac.uk/~vgg/data/pets/",
     license="Research use only — images retain the terms of the originating websites",
-    citation=(
-        "Parkhi, Vedaldi, Zisserman, Jawahar. Cats and Dogs. CVPR 2012."
-    ),
+    citation=("Parkhi, Vedaldi, Zisserman, Jawahar. Cats and Dogs. CVPR 2012."),
     provides_identity_labels=True,
     provides_face_boxes=True,
     notes=(
@@ -104,10 +102,7 @@ CATFLW = DatasetSpec(
     artifacts=(
         RemoteArtifact(
             name="CatFLW.zip",
-            url=(
-                "https://github.com/martvelge/CatFLW/releases/download/v1.0.0/"
-                "CatFLW.zip"
-            ),
+            url=("https://github.com/martvelge/CatFLW/releases/download/v1.0.0/CatFLW.zip"),
             size_bytes=0,  # size not published; verified by member count instead
             kind="zip",
             license="CC BY 4.0 (see repository)",
@@ -129,8 +124,7 @@ CATFACES29K = DatasetSpec(
         RemoteArtifact(
             name="catfaces.parquet",
             url=(
-                "https://huggingface.co/datasets/cvdl/catfaces/resolve/main/"
-                "data/train-00000-of-00001.parquet"
+                "https://huggingface.co/datasets/cvdl/catfaces/resolve/main/data/train-00000-of-00001.parquet"
             ),
             size_bytes=278664404,
             kind="parquet",
@@ -178,8 +172,7 @@ CALFW_PAIRS = DatasetSpec(
 
 
 CATALOGUE: dict[str, DatasetSpec] = {
-    spec.key: spec
-    for spec in (OXFORD_PETS, CATFLW, CATFACES29K, CALFW_PAIRS)
+    spec.key: spec for spec in (OXFORD_PETS, CATFLW, CATFACES29K, CALFW_PAIRS)
 }
 
 
@@ -225,9 +218,20 @@ def download(
     with timed(LOGGER, f"download {artifact.name}", stage="fetch", url=artifact.url):
         if curl:
             command = [
-                curl, "-L", "--fail", "--retry", "8", "--retry-all-errors",
-                "--retry-delay", "3", "--connect-timeout", "30",
-                "-o", str(part), "-w", "%{http_code} %{size_download}",
+                curl,
+                "-L",
+                "--fail",
+                "--retry",
+                "8",
+                "--retry-all-errors",
+                "--retry-delay",
+                "3",
+                "--connect-timeout",
+                "30",
+                "-o",
+                str(part),
+                "-w",
+                "%{http_code} %{size_download}",
             ]
             if resume_from:
                 command += ["-C", "-"]
@@ -337,9 +341,7 @@ class DatasetStore:
         return {}
 
     def _save_state(self, state: dict[str, dict]) -> None:
-        self.state_path.write_text(
-            json.dumps(state, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        self.state_path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
 
     def archive_path(self, spec: DatasetSpec, artifact: RemoteArtifact) -> Path:
         return self.root / spec.key / artifact.name

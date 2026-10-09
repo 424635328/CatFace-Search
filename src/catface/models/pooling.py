@@ -65,9 +65,7 @@ def resolve_pooling(mode: str, has_class_token: bool) -> str:
         ModelError: If the mode is unknown, or requires a class token the backbone lacks.
     """
     if mode not in VALID_POOLING_MODES:
-        raise ModelError(
-            f"Unknown pooling mode {mode!r}; expected one of {VALID_POOLING_MODES}"
-        )
+        raise ModelError(f"Unknown pooling mode {mode!r}; expected one of {VALID_POOLING_MODES}")
     if mode == "auto":
         return "cls_gap" if has_class_token else "gap"
     if mode in ("cls", "cls_gap") and not has_class_token:

@@ -175,21 +175,21 @@ class SpeciesProbe:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.classifier = tvm.resnet50(weights=tvm.ResNet50_Weights.IMAGENET1K_V2)
         self.classifier.to(self.device).eval()
-        self.preprocess = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
         self.face_model_path = face_model
         self.face_detector = None
         if face_model and face_model.is_file():
             import cv2
 
             self._cv2 = cv2
-            self.face_detector = cv2.FaceDetectorYN.create(
-                str(face_model), "", (320, 320), 0.7, 0.3, 5000
-            )
+            self.face_detector = cv2.FaceDetectorYN.create(str(face_model), "", (320, 320), 0.7, 0.3, 5000)
 
     def classify(self, images: list) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Return ``(top1_index, cat_mass, dog_mass)`` for a batch of PIL images."""
@@ -319,10 +319,23 @@ def analyse(
 
     sharpness = np.array([f.sharpness for f in facts])
     luminance = np.array([f.luminance for f in facts])
-    blurred = sum(1 for f in facts if "blurry" in quality_flags(
-        type("Q", (), {"sharpness": f.sharpness, "mean_luminance": f.luminance,
-                       "contrast": f.contrast, "face_fraction": 1.0})()
-    ))
+    blurred = sum(
+        1
+        for f in facts
+        if "blurry"
+        in quality_flags(
+            type(
+                "Q",
+                (),
+                {
+                    "sharpness": f.sharpness,
+                    "mean_luminance": f.luminance,
+                    "contrast": f.contrast,
+                    "face_fraction": 1.0,
+                },
+            )()
+        )
+    )
     report.quality = {
         "sharpness_median": round(float(np.median(sharpness)), 2),
         "sharpness_share_below_18": round(float((sharpness < 18.0).mean()), 4),
@@ -337,9 +350,7 @@ def analyse(
         "distinct_pixel_contents": len(digests),
         "groups_with_duplicates": len(duplicated),
         "images_in_duplicate_groups": sum(len(names) for names in duplicated.values()),
-        "duplicate_rate": round(
-            1 - len(digests) / max(len(facts), 1), 4
-        ),
+        "duplicate_rate": round(1 - len(digests) / max(len(facts), 1), 4),
         "examples": [names for _, names in sorted(duplicated.items())[:5]],
     }
     if duplicated:
@@ -476,8 +487,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--preset", choices=sorted(PRESETS), default=None)
     parser.add_argument("--data-root", default="data", help="Base directory used by presets")
     parser.add_argument("--label-csv", default=None, help="Optional path,identity CSV")
-    parser.add_argument("--sample", type=int, default=400,
-                        help="Images analysed per-pixel (0 = all)")
+    parser.add_argument("--sample", type=int, default=400, help="Images analysed per-pixel (0 = all)")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--face-model", default="data/raw/models/yunet.onnx")
     parser.add_argument("--device", default=None)

@@ -128,13 +128,13 @@ def build_identity_split(
 
     if not query_records or not gallery_records:
         raise BenchmarkError(
-            "Split construction produced no query/gallery pairs; every identity has "
-            "too few images"
+            "Split construction produced no query/gallery pairs; every identity has too few images"
         )
     if skipped:
         LOGGER.warning(
             "Dropped %d identities with fewer than %d images (no positive pair possible)",
-            skipped, require_min_identity_images,
+            skipped,
+            require_min_identity_images,
         )
 
     query_labels = np.array([r.identity for r in query_records])
@@ -146,9 +146,7 @@ def build_identity_split(
 
     shared = set(query_labels.tolist()) & set(gallery_labels.tolist())
     if not shared:
-        raise BenchmarkError(
-            "Query and gallery share no identities; no query can be evaluated"
-        )
+        raise BenchmarkError("Query and gallery share no identities; no query can be evaluated")
 
     return Split(
         name=name,
@@ -203,8 +201,7 @@ def build_pair_split(
     """
     if not (len(pair_labels) == len(pair_paths_a) == len(pair_paths_b)):
         raise BenchmarkError(
-            f"Pair arrays disagree: labels={len(pair_labels)}, a={len(pair_paths_a)}, "
-            f"b={len(pair_paths_b)}"
+            f"Pair arrays disagree: labels={len(pair_labels)}, a={len(pair_paths_a)}, b={len(pair_paths_b)}"
         )
     labels = np.asarray(pair_labels, dtype=np.int64)
     if labels.size == 0:
