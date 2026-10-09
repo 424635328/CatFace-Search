@@ -1,0 +1,186 @@
+{
+  "queries": 503,
+  "correct": 487,
+  "errors": 16,
+  "errors_that_are_label_collisions": 5,
+  "rank_of_best_correct_histogram": {
+    "rank 1 (correct)": 487,
+    "rank 2": 4,
+    "rank 3-5": 6,
+    "rank 11-50": 4,
+    "rank >50": 1,
+    "rank 6-10": 1
+  },
+  "errors_detail": [
+    {
+      "query_id": "cat_individuals:0077/0077_031.JPG",
+      "truth": "0077",
+      "predicted": "0083",
+      "rank_of_best_correct": 2,
+      "best_correct_similarity": 0.9856945872306824,
+      "best_wrong_similarity": 0.9999991655349731,
+      "margin": -0.014304578304290771,
+      "label_collision": true
+    },
+    {
+      "query_id": "cat_individuals:0083/0083_002.JPG",
+      "truth": "0083",
+      "predicted": "0077",
+      "rank_of_best_correct": 3,
+      "best_correct_similarity": 0.9886245131492615,
+      "best_wrong_similarity": 0.9999982714653015,
+      "margin": -0.011373758316040039,
+      "label_collision": true
+    },
+    {
+      "query_id": "cat_individuals:0291/0291_004.jpg",
+      "truth": "0291",
+      "predicted": "0463",
+      "rank_of_best_correct": 16,
+      "best_correct_similarity": 0.408279687166214,
+      "best_wrong_similarity": 0.49561813473701477,
+      "margin": -0.08733844757080078,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0302/0302_008.jpg",
+      "truth": "0302",
+      "predicted": "0318",
+      "rank_of_best_correct": 36,
+      "best_correct_similarity": 0.31957706809043884,
+      "best_wrong_similarity": 0.44413477182388306,
+      "margin": -0.12455770373344421,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0308/0308_003.jpeg",
+      "truth": "0308",
+      "predicted": "0309",
+      "rank_of_best_correct": 3,
+      "best_correct_similarity": 0.5364074110984802,
+      "best_wrong_similarity": 0.6697129011154175,
+      "margin": -0.13330549001693726,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0325/0325_003.jpg",
+      "truth": "0325",
+      "predicted": "0105",
+      "rank_of_best_correct": 21,
+      "best_correct_similarity": 0.45397892594337463,
+      "best_wrong_similarity": 0.536107063293457,
+      "margin": -0.0821281373500824,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0326/0326_010.JPG",
+      "truth": "0326",
+      "predicted": "0425",
+      "rank_of_best_correct": 4,
+      "best_correct_similarity": 0.48102355003356934,
+      "best_wrong_similarity": 0.5270301103591919,
+      "margin": -0.04600656032562256,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0335/0335_002.jpg",
+      "truth": "0335",
+      "predicted": "0337",
+      "rank_of_best_correct": 2,
+      "best_correct_similarity": 0.5428024530410767,
+      "best_wrong_similarity": 0.9995834231376648,
+      "margin": -0.45678097009658813,
+      "label_collision": true
+    },
+    {
+      "query_id": "cat_individuals:0355/0355_005.jpg",
+      "truth": "0355",
+      "predicted": "0446",
+      "rank_of_best_correct": 85,
+      "best_correct_similarity": 0.3422730565071106,
+      "best_wrong_similarity": 0.469694584608078,
+      "margin": -0.1274215281009674,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0357/0357_002.jpg",
+      "truth": "0357",
+      "predicted": "0443",
+      "rank_of_best_correct": 7,
+      "best_correct_similarity": 0.46580660343170166,
+      "best_wrong_similarity": 0.49279165267944336,
+      "margin": -0.0269850492477417,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0371/0371_010.jpg",
+      "truth": "0371",
+      "predicted": "0004",
+      "rank_of_best_correct": 2,
+      "best_correct_similarity": 0.426011860370636,
+      "best_wrong_similarity": 0.4479339122772217,
+      "margin": -0.021922051906585693,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0390/0390_013.jpg",
+      "truth": "0390",
+      "predicted": "0305",
+      "rank_of_best_correct": 19,
+      "best_correct_similarity": 0.37556713819503784,
+      "best_wrong_similarity": 0.43929871916770935,
+      "margin": -0.06373158097267151,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0451/0451_005.jpg",
+      "truth": "0451",
+      "predicted": "0437",
+      "rank_of_best_correct": 3,
+      "best_correct_similarity": 0.5116215944290161,
+      "best_wrong_similarity": 0.5521459579467773,
+      "margin": -0.04052436351776123,
+      "label_collision": false
+    },
+    {
+      "query_id": "cat_individuals:0455/0455_201.jpg",
+      "truth": "0455",
+      "predicted": "0455_357",
+      "rank_of_best_correct": 2,
+      "best_correct_similarity": 0.9605490565299988,
+      "best_wrong_similarity": 0.9995006918907166,
+      "margin": -0.03895163536071777,
+      "label_collision": true
+    },
+    {
+      "query_id": "cat_individuals:0455/0455_357/IMG_0791.jpg",
+      "truth": "0455_357",
+      "predicted": "0455",
+      "rank_of_best_correct": 3,
+      "best_correct_similarity": 0.9372193813323975,
+      "best_wrong_similarity": 0.9993764162063599,
+      "margin": -0.0621570348739624,
+      "label_collision": true
+    },
+    {
+      "query_id": "cat_individuals:0465/0465_011.jpg",
+      "truth": "0465",
+      "predicted": "0429",
+      "rank_of_best_correct": 5,
+      "best_correct_similarity": 0.42861324548721313,
+      "best_wrong_similarity": 0.4802185893058777,
+      "margin": -0.05160534381866455,
+      "label_collision": false
+    }
+  ],
+  "margin_correct": {
+    "min": 0.01191401481628418,
+    "p05": 0.11328768730163574,
+    "median": 0.4008749723434448
+  },
+  "margin_errors": {
+    "max": -0.011373758316040039,
+    "median": -0.05688118934631348
+  },
+  "collision_pairs_available": 137
+}

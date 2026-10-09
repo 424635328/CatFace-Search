@@ -1,0 +1,30 @@
+{
+  "checkpoint": "artifacts/train/dinov2s-arcface/best.pt",
+  "cache_key": "74acd18f1c26f93a",
+  "cached": false,
+  "protocol": {
+    "queries": 503,
+    "gallery": 12141,
+    "dim": 512
+  },
+  "params": {
+    "k1": 20,
+    "k2": 6,
+    "alpha": 0.9,
+    "steps": 20,
+    "k_graph": 12
+  },
+  "results": [
+    {
+      "method": "baseline",
+      "seconds": 0.02,
+      "hit@1": 0.9662027833001988,
+      "hit@5": 0.9880715705765407,
+      "hit@10": 0.9900596421471173,
+      "mRR": 0.9758931646032808,
+      "mAP": 0.9009159872642514,
+      "mINP": 0.7636152573014371,
+      "queries": 503.0
+    }
+  ]
+}
