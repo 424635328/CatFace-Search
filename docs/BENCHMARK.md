@@ -199,6 +199,56 @@ So the honest statement is: **when the primary metric saturates, the tie-break d
 result and must be chosen deliberately.** The tool now reports how many candidates tied, so a
 saturated comparison is visible rather than silent.
 
+### 4.1 同一条结论在完整协议上不成立（相对 §4 的更正）
+
+§4 的选择是在**紧凑协议**（76 查询）上做的，而 `hit@1` 在那里**饱和到 1.000**。完整协议的
+`hit@1` 只有 0.9682、**没有饱和**。所以"饱和"这件事只在紧凑协议上成立，而它正是当初选择
+`pca + DBA + αQE` 的依据。把同样几个配置放到**完整协议**（503 查询 / 12 141 画廊）上重跑：
+
+| 配置 | hit@1 | hit@5 | mINP | mAP | mRR |
+|---|---|---|---|---|---|
+| 无后处理 | **0.9682** | 0.9881 | 0.7686 | 0.9000 | **0.9764** |
+| **仅 DBA** | **0.9682** | **0.9901** | 0.8086 | 0.9119 | 0.9770 |
+| 仅 αQE | **0.9682** | 0.9841 | 0.7852 | 0.9074 | 0.9755 |
+| `pca + DBA + αQE`（§4 所选） | 0.9662 | 0.9861 | **0.8228** | **0.9195** | 0.9753 |
+
+已发布的配置在完整协议上**用 1 个查询（−0.0020）换取了 mINP +0.0543**。这不是"后处理有害"，
+而是一个**未被说明的权衡**：读者看到的 0.9682 是无后处理的值，而 §2 的推荐配置实际给出 0.9662。
+
+**为什么没被发现**：选择是在 `hit@1` 饱和的协议上做的，而"牺牲 hit@1"在那里是不可观测的代价。
+**在主指标饱和的协议上做选择，会静默地牺牲该指标。** 而 `dba` 单独用是**帕累托更优**的：
+hit@1 与基线相同、hit@5 更高、mINP +0.0400。
+
+### 4.2 这个选择流程本身没有统计功效（更根本的问题）
+
+用**val 身份**（75 个）在完整协议上重做选择，按项目自己记录的规则（主 `hit@1`、破并列 `mINP`）：
+
+| 配置 | val hit@1 | val mINP | test hit@1 | test mINP |
+|---|---|---|---|---|
+| **αQE** ← 规则选出的赢家 | **0.9333** | **0.5136** | **0.9682** | 0.7852 |
+| 无后处理 | **0.9333** | 0.4955 | **0.9682** | 0.7686 |
+| 仅 DBA | 0.9200 | 0.5241 | **0.9682** | 0.8086 |
+| `pca + DBA + αQE` | 0.9067 | **0.5345** | 0.9662 | **0.8228** |
+
+**六个配置在 val 上的 `hit@1` 只跨 0.0267——75 个查询里的 2 个。** 这个跨度与抽样噪声同量级，
+因此**不能据此宣称任何配置更好**。按规则选出的 αQE 在 test 上是 hit@1 +0.0020、mINP −0.0376，
+即一次**权衡而非改进**。
+
+由此得到本节的结论（比 §4 更强）：
+
+1. **后处理选择在本项目的数据规模上功效不足**，不足以驱动头条指标；
+2. 若要报告一个配置，**`dba` 单独用**是有证据支持的选择（test hit@1 不变、hit@5 与 mINP 都更高，
+   且在 val 上不属于最差的一档）；
+3. §2 的表给出的是**无后处理**的 `hit@1 = 0.9682`；任何后处理配置都**没有**改善它。
+
+原始输出：`docs/diagnostics/postprocess-full-protocol.json`、
+`docs/diagnostics/postprocess-val-selection.json`。复现：
+
+```bash
+python -m tools.postprocess_full_protocol --out docs/diagnostics/postprocess-full-protocol.json
+python -m tools.postprocess_full_protocol --split val --out docs/diagnostics/postprocess-val-selection.json
+```
+
 ## 5. All-species recognition statistics
 
 The identity benchmark above asks "is this the same cat?". This section asks a different

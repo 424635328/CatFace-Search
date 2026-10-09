@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -123,6 +124,46 @@ def save(directory: str | Path, key: str, payload: dict[str, Any]) -> Path:
     return target
 
 
+def save_arrays(
+    directory: str | Path, key: str, arrays: dict[str, Any], list_fields: Sequence[str] = ()
+) -> Path:
+    """Persist an arbitrary set of arrays under ``key``.
+
+    Separate from :func:`save` because that one encodes the query/gallery protocol shape, and forcing
+    a single-split job (the 8 833-image training set, for instance) through it would either fail or
+    invent empty halves. The first attempt did fail, with a ``KeyError: 'query'``, after spending
+    95 seconds embedding — the cost of a cache that only understands one shape.
+    """
+    target = _path(directory, key)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    archive: dict[str, np.ndarray] = {}
+    for name, value in arrays.items():
+        if name in list_fields:
+            archive[name] = np.asarray(value, dtype="U512")
+        else:
+            array = np.asarray(value)
+            archive[name] = array if array.dtype != np.float64 else array.astype(np.float32)
+    np.savez_compressed(target, **archive)
+    return target
+
+
+def load_arrays(directory: str | Path, key: str, list_fields: Sequence[str] = ()) -> dict[str, Any] | None:
+    """Read what :func:`save_arrays` wrote, or ``None`` when the entry is absent or unreadable."""
+    target = _path(directory, key)
+    if not target.is_file():
+        return None
+    try:
+        with np.load(target, allow_pickle=False) as archive:
+            payload: dict[str, Any] = {name: archive[name] for name in archive.files}
+    except (OSError, ValueError, EOFError, KeyError):
+        # A truncated file is what an interrupted write leaves behind; treat it as a miss.
+        return None
+    for name in list_fields:
+        if name in payload:
+            payload[name] = [str(item) for item in payload[name].tolist()]
+    return payload
+
+
 def load_or_embed(
     key: str,
     producer: Callable[[], dict[str, Any]],
@@ -139,4 +180,13 @@ def load_or_embed(
     return payload, False
 
 
-__all__ = ["DEFAULT_CACHE_DIR", "cache_key", "file_digest", "load", "load_or_embed", "save"]
+__all__ = [
+    "DEFAULT_CACHE_DIR",
+    "cache_key",
+    "file_digest",
+    "load",
+    "load_arrays",
+    "load_or_embed",
+    "save",
+    "save_arrays",
+]

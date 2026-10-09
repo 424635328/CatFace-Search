@@ -1,0 +1,142 @@
+{
+  "checkpoint": "artifacts/train/dinov2s-arcface/best.pt",
+  "protocol": {
+    "queries": 503,
+    "gallery": 12141,
+    "unit": 0.0019880715705765406
+  },
+  "results": [
+    {
+      "configuration": "none",
+      "config": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 512,
+      "hit@1": 0.9681908548707754,
+      "hit@5": 0.9880715705765407,
+      "hit@10": 0.9900596421471173,
+      "mRR": 0.976398575718523,
+      "mAP": 0.9000266765688361,
+      "mINP": 0.7685754607782592,
+      "queries": 503.0
+    },
+    {
+      "configuration": "dba",
+      "config": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": true,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "none",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 512,
+      "hit@1": 0.9681908548707754,
+      "hit@5": 0.9900596421471173,
+      "hit@10": 0.9940357852882704,
+      "mRR": 0.9769547549213996,
+      "mAP": 0.9118689321881961,
+      "mINP": 0.8085906016490211,
+      "queries": 503.0
+    },
+    {
+      "configuration": "aqe",
+      "config": {
+        "whiten": "none",
+        "whiten_dim": 0,
+        "dba": false,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "aqe",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 512,
+      "hit@1": 0.9681908548707754,
+      "hit@5": 0.9840954274353877,
+      "hit@10": 0.9840954274353877,
+      "mRR": 0.9754868068075542,
+      "mAP": 0.9074394663282217,
+      "mINP": 0.7852056475262091,
+      "queries": 503.0
+    },
+    {
+      "configuration": "pca+dba+aqe (published)",
+      "config": {
+        "whiten": "pca",
+        "whiten_dim": 0,
+        "dba": true,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "aqe",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 512,
+      "hit@1": 0.9662027833001988,
+      "hit@5": 0.9860834990059643,
+      "hit@10": 0.9860834990059643,
+      "mRR": 0.9752776384644343,
+      "mAP": 0.9195097554272514,
+      "mINP": 0.8228307640443503,
+      "queries": 503.0
+    },
+    {
+      "configuration": "pcaw256+dba+aqe",
+      "config": {
+        "whiten": "pcaw",
+        "whiten_dim": 256,
+        "dba": true,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "aqe",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 256,
+      "hit@1": 0.9662027833001988,
+      "hit@5": 0.9821073558648111,
+      "hit@10": 0.9840954274353877,
+      "mRR": 0.9735977504759549,
+      "mAP": 0.8992552368926634,
+      "mINP": 0.7707704104310348,
+      "queries": 503.0
+    },
+    {
+      "configuration": "pca128+dba+aqe",
+      "config": {
+        "whiten": "pca",
+        "whiten_dim": 128,
+        "dba": true,
+        "dba_k": 3,
+        "dba_alpha": 3.0,
+        "query_expansion": "aqe",
+        "aqe_top_k": 3,
+        "aqe_alpha": 3.0,
+        "aqe_reverse_weight": 0.5
+      },
+      "descriptor_dim": 128,
+      "hit@1": 0.9662027833001988,
+      "hit@5": 0.9860834990059643,
+      "hit@10": 0.9860834990059643,
+      "mRR": 0.9749244875370475,
+      "mAP": 0.9186803280194108,
+      "mINP": 0.8212050126881891,
+      "queries": 503.0
+    }
+  ]
+}
