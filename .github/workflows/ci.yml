@@ -153,11 +153,27 @@ jobs:
             exit 1
           }
 
-      - name: The image must not contain a checkpoint or the corpus
+      - name: The image must not contain the model weights or the corpus
+        # The assertion is on SIZE, not on the file name. A bare "no *.pt in the image" cannot tell a
+        # 1 KB library fixture from an 86 MB checkpoint, so it would fail for the wrong reason and,
+        # worse, could pass while a checkpoint sat in a layer under another name. What matters is
+        # that no large artifact was baked in: weights and the manifest are mounted at run time.
         run: |
-          if docker run --rm --entrypoint sh catface-search:ci -c \
-              'find / -name "*.pt" -o -name "cat_individuals_manifest.jsonl" | grep -q .'; then
-            echo "::error::weights or the manifest were baked into the image instead of mounted"
+          offenders=$(docker run --rm --entrypoint sh catface-search:ci -c \
+            'find / -xdev -type f -size +10240k \( -name "*.pt" -o -name "*.pth" -o -name "*.pkl" -o -name "*manifest*.jsonl" \) 2>/dev/null')
+          if [ -n "$offenders" ]; then
+            echo "::error::large model or corpus artifacts were baked into the image:"
+            echo "$offenders"
+            echo "Mount them instead, so a checkpoint can change without rebuilding the service."
             exit 1
           fi
-          echo "no weights or corpus in the image"
+          echo "no file larger than 10 MB matches a weights or manifest pattern"
+
+      - name: Report image size
+        # Not a gate. It is recorded because image size is the observable that silently regresses
+        # when someone adds a dependency, and a number in the log is what makes that visible.
+        #
+        # Written as a block scalar because the Go template in --format contains a colon followed by
+        # a space, which YAML reads as a mapping separator and rejects as a scanner error.
+        run: |
+          docker image inspect catface-search:ci --format '{{.Size}} bytes'
