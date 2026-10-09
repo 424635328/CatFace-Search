@@ -60,7 +60,11 @@
 
   <div id="progress" class="progress" hidden>
     <div class="spinner" aria-hidden="true"></div>
-    <span>正在嵌入并检索…首次请求会加载模型，可能较慢。</span>
+    <!-- The copy says what is actually happening. The first version said "the first request loads the
+         model, which may be slow", which was wrong once the model moved to a background load: the
+         banner above already reports readiness, so that sentence contradicted it on a ready server
+         and made a 300 ms search look like a cold start. -->
+    <span>正在检索…（嵌入这张照片 + 与 12644 个描述子比对）</span>
   </div>
   <div id="error" class="notice notice-error" hidden role="alert"></div>
 </section>

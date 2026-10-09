@@ -63,17 +63,29 @@ class FakeResult:
         self.ids = ids
 
 
-def make_service(tmp_path: Path, vectors: dict[str, list[float]], labels: dict[str, str]) -> SearchService:
-    """A SearchService whose model load and embedding are stubbed out."""
+def make_service(
+    tmp_path: Path,
+    vectors: dict[str, list[float]],
+    labels: dict[str, str],
+    id_template: str = "{key}",
+) -> SearchService:
+    """A SearchService whose model load and embedding are stubbed out.
+
+    ``id_template`` shapes the image ids. The real corpus uses ids such as
+    ``cat_individuals:0001/0001_009.JPG``, which contain a colon *and a slash* — and a slash is what
+    breaks a plain FastAPI path parameter. Generating flat ids in tests is how the thumbnail route
+    shipped broken: every fixture id was a single segment, so the router's 404 never appeared here
+    while every thumbnail in the browser failed.
+    """
     manifest = tmp_path / "manifest.jsonl"
     lines = []
-    for image_id, label in labels.items():
-        image = tmp_path / f"{image_id}.jpg"
+    for key, label in labels.items():
+        image = tmp_path / f"{key}.jpg"
         image.write_bytes(b"fake")
         lines.append(
             json.dumps(
                 {
-                    "image_id": image_id,
+                    "image_id": id_template.format(key=key),
                     "identity": label,
                     "path": str(image),
                     "source": "test",
@@ -304,6 +316,68 @@ class TestHttp:
     def test_gallery_image_is_served(self, client):
         response = client.get("/api/gallery/a")
         assert response.status_code == 200
+
+    def test_gallery_id_containing_a_slash_is_served(self, tmp_path, monkeypatch):
+        """Regression: real ids contain a slash, which a plain path parameter cannot match.
+
+        Every thumbnail in the browser 404'd with a bare "Not Found" — the router rejected the request
+        before the handler ran, so the handler's own diagnostic never appeared. The fix is the
+        ``:path`` converter, and this test fails without it.
+
+        The id comes from the fixture rather than being written out by hand. An earlier version
+        hard-coded ``cat_individuals:0001/0001_009.JPG`` while the fixture generated
+        ``cat_individuals:0001_009/0001_009.JPG``, so it asked for an id that never existed and failed
+        for a reason unrelated to the behaviour under test.
+        """
+        service = make_service(
+            tmp_path,
+            vectors={"0001_009": [1.0, 0.0]},
+            labels={"0001_009": "cat-a"},
+            id_template="cat_individuals:{key}/{key}.JPG",
+        )
+        stub_embed(service, [1.0, 0.0], monkeypatch)
+        image_id = service._records[0].image_id
+        assert "/" in image_id, "the fixture must produce a slashed id or this test proves nothing"
+
+        from urllib.parse import quote
+
+        with TestClient(create_app(service)) as client:
+            # The shape the browser sends: encodeURIComponent leaves "/" alone, so the id arrives as
+            # two path segments.
+            raw = client.get(f"/api/gallery/{image_id}")
+            # And the shape a client sends when it escapes the slash as well.
+            escaped = client.get(f"/api/gallery/{quote(image_id, safe='')}")
+        assert raw.status_code == 200, (
+            f"{image_id!r} returned {raw.status_code}: an id with a slash must reach the handler"
+        )
+        assert escaped.status_code == 200, f"the percent-escaped form returned {escaped.status_code}"
+
+    def test_search_results_can_be_thumbnailed(self, tmp_path, monkeypatch):
+        """The end-to-end property the UI depends on: every returned match is fetchable.
+
+        Asserting the route in isolation would still miss a mismatch between the id shape used in a
+        search response and the id shape the gallery route accepts.
+        """
+        service = make_service(
+            tmp_path,
+            vectors={"0001_009": [1.0, 0.0], "0002_001": [0.0, 1.0]},
+            labels={"0001_009": "cat-a", "0002_001": "cat-b"},
+            id_template="cat_individuals:{key}/{key}.JPG",
+        )
+        stub_embed(service, [1.0, 0.0], monkeypatch)
+        with TestClient(create_app(service)) as client:
+            payload = client.post(
+                "/api/search",
+                files={"file": ("q.jpg", b"fake", "image/jpeg")},
+                data={"top_k": "5"},
+            ).json()
+            assert payload["matches"], "the search returned nothing to thumbnail"
+            for match in payload["matches"]:
+                image = client.get(f"/api/gallery/{match['image_id']}")
+                assert image.status_code == 200, (
+                    f"match {match['image_id']!r} cannot be fetched; the UI would show an error "
+                    "tile for every result"
+                )
 
     def test_unknown_gallery_image_is_404_not_500(self, client):
         response = client.get("/api/gallery/nope")

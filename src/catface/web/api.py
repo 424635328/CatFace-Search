@@ -225,7 +225,12 @@ def create_app(service: SearchService | None = None) -> FastAPI:
         counts = instance.identity_index()
         return [IdentityCount(identity=name, images=count) for name, count in list(counts.items())[:limit]]
 
-    @api.get("/api/gallery/{image_id}", summary="serve one gallery image")
+    # ``{image_id:path}`` rather than ``{image_id}``: identifiers in this corpus look like
+    # ``cat_individuals:0001/0001_009.JPG`` and contain a slash. A plain path parameter matches a
+    # single segment, so every thumbnail request 404'd at the *router*, before reaching the handler —
+    # which is why the response was a bare "Not Found" instead of the handler's own explanation. The
+    # ``:path`` converter accepts the remaining segments, and ``str`` keeps the value as one string.
+    @api.get("/api/gallery/{image_id:path}", summary="serve one gallery image")
     def gallery_image(image_id: str) -> FileResponse:
         instance = require_service()
         record = instance.record_for(image_id)
