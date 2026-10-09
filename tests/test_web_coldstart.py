@@ -20,6 +20,7 @@ clearly, because that is the difference between "still loading" and "broken" for
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -53,6 +54,67 @@ def _multipart(field: str, filename: str, payload: bytes) -> tuple[bytes, str]:
         ]
     )
     return body, f"multipart/form-data; boundary={boundary}"
+
+
+@pytest.fixture()
+def slow_loading_server(tmp_path):
+    """A server whose model load takes seconds, so the loading window can be observed.
+
+    A deliberately instantaneous load cannot reproduce the defect this guards: a handler that blocks
+    the event loop only misbehaves while something is still loading. The delay comes from
+    ``CATFACE_LOAD_DELAY_SECONDS``, which is an explicit test hook in the service.
+
+    The checkpoint is still invalid, so readiness never flips. That makes the assertions about the
+    loading window deterministic instead of racing the load's completion.
+    """
+    port = _free_port()
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        json.dumps(
+            {
+                "image_id": "a",
+                "identity": "cat-a",
+                "path": str(tmp_path / "a.jpg"),
+                "source": "test",
+                "detector": "whole_image",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "a.jpg").write_bytes(b"not really an image")
+    broken_checkpoint = tmp_path / "broken.pt"
+    broken_checkpoint.write_bytes(b"this is not a torch checkpoint")
+
+    environment = dict(os.environ, CATFACE_LOAD_DELAY_SECONDS="6")
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "catface.web",
+            "--port",
+            str(port),
+            "--device",
+            "cpu",
+            "--no-browser",
+            "--checkpoint",
+            str(broken_checkpoint),
+            "--manifest",
+            str(manifest),
+        ],
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=environment,
+    )
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 @pytest.fixture()
@@ -179,3 +241,41 @@ class TestColdStartContract:
             urllib.request.urlopen(request, timeout=15)
         assert info.value.code == 400, "an unsupported extension must be 400 even while unready"
         assert "accepted" in info.value.read().decode()
+
+    def test_status_stays_responsive_while_the_load_is_still_running(self, slow_loading_server):
+        """The defect this exists for: a mid-load request that blocks until the load completes.
+
+        A cold service used to call its synchronous loader from the request path. The client then
+        held the connection for the whole load — minutes — which a browser, a reverse proxy, or a
+        user all read as "hang", not as "loading". /api/status must answer immediately throughout.
+        """
+        assert wait_for(slow_loading_server) is not None
+        slowest = 0.0
+        for _ in range(3):
+            began = time.monotonic()
+            with urllib.request.urlopen(f"{slow_loading_server}/api/status", timeout=10) as reply:
+                payload = json.loads(reply.read())
+            slowest = max(slowest, time.monotonic() - began)
+            assert payload["ready"] is False, (
+                "the model must still be loading during this check, or it proves nothing"
+            )
+            time.sleep(0.5)
+        assert slowest < 2.0, (
+            f"/api/status took {slowest:.1f}s while the model was loading; the handler is blocking"
+        )
+
+    def test_search_during_a_slow_load_fails_fast(self, slow_loading_server):
+        """503 must not wait for the load either — that is indistinguishable from a hang."""
+        assert wait_for(slow_loading_server) is not None
+        body, content_type = _multipart("file", "q.jpg", b"not an image")
+        request = urllib.request.Request(
+            f"{slow_loading_server}/api/search", data=body, headers={"Content-Type": content_type}
+        )
+        began = time.monotonic()
+        with pytest.raises(urllib.error.HTTPError) as info:
+            urllib.request.urlopen(request, timeout=10)
+        elapsed = time.monotonic() - began
+        assert info.value.code == 503
+        assert elapsed < 2.0, (
+            f"the 503 took {elapsed:.1f}s while the load was still running ({slow_loading_server})"
+        )

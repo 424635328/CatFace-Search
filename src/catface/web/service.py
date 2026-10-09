@@ -20,6 +20,9 @@ Two properties are deliberate and enforced here rather than documented as intent
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +36,28 @@ from ..logging_utils import get_logger
 from ..models.embedder import Embedder, embed_records
 
 LOGGER = get_logger("catface.web.service")
+
+#: Default location of the descriptor cache. Gitignored derived data, so it may legitimately be
+#: absent; the service then embeds, which is only slow, not broken.
+DEFAULT_DESCRIPTOR_CACHE = Path("artifacts") / "web-descriptors"
+
+
+def _file_digest(path: Path, chunk: int = 1 << 20) -> str:
+    """SHA-256 of a file's content. Used to detect a checkpoint that changed under a known path."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        while block := handle.read(chunk):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _descriptor_width(embedder: Embedder | None) -> int:
+    """Width of the descriptor the model produces, or 0 when it cannot be determined."""
+    if embedder is None:
+        return 0
+    head = getattr(embedder, "head", None)
+    return int(getattr(head, "embedding_dim", 0) or 0)
+
 
 #: Extensions accepted for an uploaded query. Checked as a hint only — the bytes are validated by
 #: decoding the image, because a filename proves nothing about its content.
@@ -113,6 +138,7 @@ class SearchService:
         device: str = "cpu",
         image_size: int = 224,
         gallery_root: str | Path | None = None,
+        descriptor_cache_dir: str | Path | None = None,
     ) -> None:
         self.checkpoint = Path(checkpoint)
         self.manifest_path = Path(manifest)
@@ -121,6 +147,9 @@ class SearchService:
         # Gallery images are addressed relative to the manifest's corpus root when one is given, so
         # the API can serve them without exposing an absolute path from the serving machine.
         self.gallery_root = Path(gallery_root) if gallery_root else None
+        # Where gallery descriptors are cached between runs. Relative paths resolve against the
+        # working directory, which the entry point sets to the repository root.
+        self.descriptor_cache_dir = Path(descriptor_cache_dir or DEFAULT_DESCRIPTOR_CACHE)
         self._embedder: Embedder | None = None
         self._vectors: np.ndarray | None = None
         self._records: list[Any] = []
@@ -132,7 +161,15 @@ class SearchService:
         return self._embedder is not None and self._vectors is not None and len(self._records) > 0
 
     def load(self) -> None:
-        """Load the model and embed the gallery once."""
+        """Load the model and embed the gallery once.
+
+        If a descriptor cache from a previous run matches this exact configuration, the gallery
+        descriptors are loaded from disk instead of recomputed. The cache key includes the
+        checkpoint's *content* hash, the manifest's hash, the image size and the TTA views, so a
+        stale entry cannot be mistaken for a fresh one. Missing or mismatched entries fall back to
+        embedding, which is what makes the optimisation safe to leave on: the slow path remains the
+        fallback rather than an error.
+        """
         if self.ready:
             return
         if not self.checkpoint.is_file():
@@ -153,24 +190,144 @@ class SearchService:
         if not self._records:
             raise DataError(f"manifest {self.manifest_path} is empty")
 
-        LOGGER.info("embedding %d gallery images", len(self._records))
-        embedding = embed_records(
-            self._embedder,
-            [record.path for record in self._records],
-            image_size=self.image_size,
-            batch_size=32,
-        )
-        vectors = np.asarray(embedding.vectors, dtype=np.float32)
-        if vectors.size == 0:
-            raise DataError("the gallery produced no descriptors")
-        self._vectors = vectors
+        cached = self._load_cached_descriptors()
+        if cached is not None:
+            vectors = cached
+        else:
+            LOGGER.info("embedding %d gallery images (no usable cache)", len(self._records))
+            # A deliberate delay for tests. It exists because the failure it guards against -- a
+            # handler blocking the event loop during a slow load -- cannot be reproduced with an
+            # instant load, and it is named as a test hook rather than disguised as a feature.
+            delay = os.environ.get("CATFACE_LOAD_DELAY_SECONDS")
+            if delay:
+                LOGGER.warning("CATFACE_LOAD_DELAY_SECONDS=%s: delaying the load on purpose", delay)
+                time.sleep(float(delay))
+            embedding = embed_records(
+                self._embedder,
+                [record.path for record in self._records],
+                image_size=self.image_size,
+                batch_size=32,
+            )
+            vectors = np.asarray(embedding.vectors, dtype=np.float32)
+            if vectors.size == 0:
+                raise DataError("the gallery produced no descriptors")
+
+        # ``ready`` becomes true the moment ``_vectors`` is set, so the load time is stored first:
+        # otherwise a status request landing between the two assignments reports ready with
+        # load_seconds 0.0, which reads as a measurement rather than as the race it is.
         self._load_seconds = time.perf_counter() - started
+        self._vectors = vectors
+        if cached is None:
+            # Persist after publishing: writing the cache must not delay readiness, and a failure to
+            # write is only a missed optimisation.
+            self._save_cached_descriptors(vectors)
         LOGGER.info(
             "ready: %d descriptors of width %d in %.1fs",
-            vectors.shape[0],
-            vectors.shape[1],
+            self._vectors.shape[0],
+            self._vectors.shape[1],
             self._load_seconds,
         )
+
+    # -- descriptor cache --------------------------------------------------------------------
+    def _cache_key(self) -> str | None:
+        """Key identifying this exact gallery embedding, or ``None`` when it cannot be computed.
+
+        Hashing the checkpoint's *content* is what makes a stale entry detectable: a retrained model
+        usually lands on the same path, so a path-based key would happily serve descriptors computed
+        from the previous weights. Reading two files is milliseconds against the minutes it saves.
+
+        A failure here is never fatal -- the caller simply embeds -- because the cache is an
+        optimisation and a missing optimisation must not become a startup error.
+        """
+        try:
+            manifest_digest = _file_digest(self.manifest_path)
+            checkpoint_digest = _file_digest(self.checkpoint)
+        except OSError:
+            return None
+        payload = {
+            "checkpoint_sha256": checkpoint_digest,
+            "manifest_sha256": manifest_digest,
+            "image_size": self.image_size,
+            "tta": list(self._embedder.config.tta) if self._embedder else [],
+            "order": "manifest",
+        }
+        blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+    def _cache_path(self) -> Path | None:
+        key = self._cache_key()
+        if key is None:
+            return None
+        return self.descriptor_cache_dir / f"gallery-{key}.npz"
+
+    def _load_cached_descriptors(self) -> np.ndarray | None:
+        """Return gallery descriptors in manifest order from the cache, or ``None``.
+
+        The identity of every image is re-checked against the manifest rather than trusted from the
+        key alone: a wrong descriptor silently attached to the wrong label would corrupt every
+        answer while looking healthy, which is the worst possible failure for a retrieval service.
+        """
+        target = self._cache_path()
+        if target is None or not target.is_file():
+            return None
+        try:
+            with np.load(target, allow_pickle=False) as archive:
+                ids = [str(value) for value in archive["ids"].tolist()]
+                labels = [str(value) for value in archive["labels"].tolist()]
+                vectors = np.asarray(archive["vectors"], dtype=np.float32)
+        except (OSError, KeyError, ValueError, EOFError) as error:
+            # EOFError is what numpy raises for a truncated or empty .npz, which is exactly what an
+            # interrupted save leaves behind — a real possibility here, because the writer runs while
+            # the service may be shutting down. This was caught by a test that wrote a zero-byte
+            # cache file, after a real interrupted run had left one in the repository.
+            LOGGER.warning("descriptor cache at %s is unreadable (%s); embedding instead", target, error)
+            return None
+
+        if len(ids) != len(self._records) or vectors.shape[0] != len(self._records):
+            LOGGER.warning(
+                "descriptor cache holds %d entries but the manifest has %d; embedding",
+                len(ids),
+                len(self._records),
+            )
+            return None
+        for position, record in enumerate(self._records):
+            if ids[position] != record.image_id or labels[position] != record.identity:
+                LOGGER.warning(
+                    "descriptor cache does not match the manifest at position %d (%s vs %s); "
+                    "embedding instead",
+                    position,
+                    ids[position],
+                    record.image_id,
+                )
+                return None
+        expected_width = _descriptor_width(self._embedder)
+        if expected_width and vectors.shape[1] != expected_width:
+            LOGGER.warning(
+                "descriptor cache width %d does not match the model's %d; embedding",
+                vectors.shape[1],
+                expected_width,
+            )
+            return None
+        LOGGER.info("gallery descriptors loaded from cache (%s)", target.name)
+        return vectors
+
+    def _save_cached_descriptors(self, vectors: np.ndarray) -> None:
+        """Persist descriptors so the next start is I/O instead of minutes of GPU work."""
+        target = self._cache_path()
+        if target is None:
+            return
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(
+                target,
+                vectors=np.asarray(vectors, dtype=np.float32),
+                ids=np.asarray([record.image_id for record in self._records], dtype="U256"),
+                labels=np.asarray([record.identity for record in self._records], dtype="U128"),
+            )
+            LOGGER.info("gallery descriptors cached at %s", target.name)
+        except OSError as error:
+            # A read-only or full disk must not fail the request that triggered the save.
+            LOGGER.warning("could not write the descriptor cache (%s); serving without it", error)
 
     # -- introspection -----------------------------------------------------------------------
     def status(self) -> dict[str, Any]:

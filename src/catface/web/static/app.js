@@ -12,6 +12,45 @@
 (function () {
   "use strict";
 
+  /* Readiness banner.
+   *
+   * The banner is rendered server-side, which makes it a snapshot: the page is usually opened within
+   * seconds of the server binding, while the gallery is still embedding for a few minutes, so the
+   * markup says "not ready" and stays that way. The first version of this page told the reader no
+   * refresh was needed, which was false. Polling replaces the snapshot with the live state, and it
+   * also turns an opaque wait into a stated one.
+   */
+  var banner = document.getElementById("readiness");
+  if (banner) {
+    var pollStatus = function () {
+      fetch("/api/status", { cache: "no-store" })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(function (status) {
+          if (!status) { return; }
+          if (status.ready) {
+            banner.className = "notice notice-ready";
+            banner.innerHTML =
+              "<strong>服务已就绪。</strong> 图库 " + status.gallery_images + " 张 / " +
+              status.gallery_identities + " 个身份，描述子 " + status.descriptor_dim +
+              " 维（" + (status.backend || "unknown") + " on " + status.device +
+              "）。可以检索了。";
+            return; // stop polling once ready
+          }
+          banner.className = "notice notice-warn";
+          banner.innerHTML =
+            "<strong>服务正在加载。</strong> 正在嵌入图库并对模型做首次前向，" +
+            "本机实测约 2-4 分钟（首次运行还要从 HuggingFace 取骨干权重，可能更久）。" +
+            "此横幅会自动更新，无需刷新；就绪前检索会返回 503。";
+          setTimeout(pollStatus, 3000);
+        })
+        .catch(function () {
+          // A failed poll is not worth an error box: the banner keeps its last text and retries.
+          setTimeout(pollStatus, 5000);
+        });
+    };
+    pollStatus();
+  }
+
   var form = document.getElementById("search-form");
   if (!form) { return; }
 

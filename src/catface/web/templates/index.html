@@ -2,10 +2,16 @@
 
 {% block content %}
 {% if not status.ready %}
-<div class="notice notice-warn" role="status">
-  <strong>服务未就绪。</strong>
-  模型或图库未加载成功，<code>/api/search</code> 会返回 503。
-  用 <code>./tools/preflight.ps1</code> 检查环境，或确认 checkpoint 与 manifest 路径。
+<div class="notice notice-warn" id="readiness" role="status">
+  <strong>服务正在加载。</strong>
+  正在嵌入图库并对模型做首次前向，本机实测约 2-4 分钟。此横幅会自动更新，无需刷新；
+  就绪前检索会返回 503。若长时间不变化，检查启动窗口里的日志。
+</div>
+{% else %}
+<div class="notice notice-ready" id="readiness" role="status">
+  <strong>服务已就绪。</strong>
+  图库 {{ status.gallery_images }} 张 / {{ status.gallery_identities }} 个身份，
+  描述子 {{ status.descriptor_dim }} 维。
 </div>
 {% endif %}
 
