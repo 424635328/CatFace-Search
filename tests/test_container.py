@@ -178,3 +178,24 @@ class TestContainerCiJob:
             "part of the expression"
         )
         assert "find /" in find_step, "the scan must target the container filesystem root"
+
+    def test_the_scan_is_not_aborted_by_the_runner_shell(self):
+        """GitHub runs steps with ``bash -e``, so a non-zero command substitution kills the step.
+
+        The first version of this step failed with no output at all: ``find`` over a container root
+        reports a non-zero status (unreadable directories, ``/proc``), the assignment propagated it,
+        and ``-e`` aborted the step before any diagnostic ran. A check that fails silently is worse
+        than no check, because it looks like a real finding.
+        """
+        find_step = next((text for text in self._runs() if "offenders=" in text), None)
+        assert find_step is not None
+        assert "set +e" in find_step, (
+            "the scan must run with -e disabled, or a non-zero find status aborts the step silently"
+        )
+        assert find_step.index("set +e") < find_step.index("offenders="), (
+            "set +e must come before the command substitution it protects"
+        )
+        assert "set -e" in find_step, "errexit should be restored before the assertion"
+        assert "scan_status" in find_step, (
+            "the scan's exit status must be reported, so a silent failure is visible in the log"
+        )

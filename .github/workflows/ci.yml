@@ -159,13 +159,24 @@ jobs:
         # worse, could pass while a checkpoint sat in a layer under another name. What matters is
         # that no large artifact was baked in: weights and the manifest are mounted at run time.
         #
-        # Single quotes around the shell command, not double: inside a double-quoted YAML scalar the
-        # escaped \" collapses to ", which silently splits the find expression into separate
-        # arguments and makes sh -c fail with "find: missing argument to -size". YAML does not
-        # process single quotes, so the command reaches the shell intact.
+        # Two details are load-bearing and were both learned from a failing run:
+        #   * single quotes around the shell command — inside a double-quoted YAML scalar an escaped
+        #     quote collapses to a plain one, which splits the find expression into separate
+        #     arguments and makes sh fail with "find: missing argument to -size";
+        #   * `set +e` around the scan — GitHub runs steps with `bash -e`, and a command substitution
+        #     that exits non-zero (find reports a non-zero status on permission errors, and scanning
+        #     / hits /proc) aborts the whole step before any diagnostic is printed. The first version
+        #     of this step failed silently for exactly that reason.
         run: |
+          set +e
           offenders=$(docker run --rm --entrypoint sh catface-search:ci -c \
             'find / -xdev -type f -size +10240k \( -name "*.pt" -o -name "*.pth" -o -name "*.pkl" -o -name "*manifest*.jsonl" \) 2>/dev/null')
+          scan_status=$?
+          set -e
+          # A non-zero status with no matches is find complaining about unreadable directories, which
+          # is expected when scanning a container root; a non-zero status with matches still fails
+          # below, so the assertion is not weakened.
+          echo "scan exit status: $scan_status"
           if [ -n "$offenders" ]; then
             echo "::error::large model or corpus artifacts were baked into the image:"
             echo "$offenders"
